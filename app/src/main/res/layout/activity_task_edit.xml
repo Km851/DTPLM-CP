@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView android:id="@id/editMain" android:background="@color/card_white" android:layout_width="fill_parent" android:layout_height="fill_parent" android:fillViewport="true"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <LinearLayout android:orientation="vertical" android:padding="20.0dip" android:paddingBottom="40.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content">
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginBottom="20.0dip">
+            <ImageView android:id="@id/btnClose" android:padding="4.0dip" android:layout_width="32.0dip" android:layout_height="32.0dip" android:src="@android:drawable/ic_menu_close_clear_cancel" android:contentDescription="Close" />
+            <TextView android:textSize="16.0sp" android:textColor="@color/text_primary" android:gravity="center" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="Edit task" android:layout_weight="1.0" android:fontFamily="sans-serif-medium" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/purple_primary_end" android:id="@id/btnSave" android:padding="4.0dip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Save" android:fontFamily="sans-serif-medium" />
+        </LinearLayout>
+        <LinearLayout android:orientation="vertical" android:background="@drawable/bg_field_group" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginBottom="20.0dip">
+            <EditText android:textSize="20.0sp" android:textColor="@color/text_primary" android:textColorHint="@color/text_muted" android:id="@id/editTaskTitle" android:background="@android:color/transparent" android:layout_width="fill_parent" android:layout_height="wrap_content" android:padding="16.0dip" android:hint="Task title" android:inputType="text" android:fontFamily="sans-serif-medium" />
+            <View android:background="@color/nav_divider" android:layout_width="fill_parent" android:layout_height="1.0dip" android:layout_marginStart="16.0dip" />
+            <EditText android:textSize="14.0sp" android:textColor="@color/text_secondary" android:textColorHint="@color/text_muted" android:gravity="top" android:id="@id/editDescription" android:background="@android:color/transparent" android:layout_width="fill_parent" android:layout_height="wrap_content" android:padding="16.0dip" android:hint="Add a description — what does 'done' look like?" android:minLines="3" android:inputType="textMultiLine" android:fontFamily="sans-serif" />
+        </LinearLayout>
+        <LinearLayout android:orientation="vertical" android:background="@drawable/bg_field_group" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginBottom="20.0dip">
+            <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/fieldStartTime" android:layout_width="fill_parent" android:layout_height="48.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+                <TextView android:textSize="14.0sp" android:textColor="@color/text_muted" android:layout_width="20.0dip" android:layout_height="wrap_content" android:text="▶" />
+                <TextView android:textSize="14.0sp" android:textColor="@color/text_primary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="Start time" android:layout_weight="1.0" android:layout_marginStart="10.0dip" />
+                <TextView android:textSize="13.0sp" android:textColor="@color/text_muted" android:id="@id/valueStartTime" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Not set" />
+                <TextView android:textSize="16.0sp" android:textColor="@color/text_muted" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" ›" />
+            </LinearLayout>
+            <View android:background="@color/nav_divider" android:layout_width="fill_parent" android:layout_height="1.0dip" android:layout_marginStart="44.0dip" />
+            <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/fieldDuration" android:layout_width="fill_parent" android:layout_height="48.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+                <TextView android:textSize="14.0sp" android:layout_width="20.0dip" android:layout_height="wrap_content" android:text="⏳" />
+                <TextView android:textSize="14.0sp" android:textColor="@color/text_primary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="Time to complete" android:layout_weight="1.0" android:layout_marginStart="10.0dip" />
+                <TextView android:textSize="13.0sp" android:textColor="@color/text_muted" android:id="@id/valueDuration" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Not set" />
+                <TextView android:textSize="16.0sp" android:textColor="@color/text_muted" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" ›" />
+            </LinearLayout>
+            <View android:background="@color/nav_divider" android:layout_width="fill_parent" android:layout_height="1.0dip" android:layout_marginStart="44.0dip" />
+            <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/fieldDeadline" android:layout_width="fill_parent" android:layout_height="48.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+                <TextView android:textSize="14.0sp" android:layout_width="20.0dip" android:layout_height="wrap_content" android:text="🚩" />
+                <TextView android:textSize="14.0sp" android:textColor="@color/text_primary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="Deadline" android:layout_weight="1.0" android:layout_marginStart="10.0dip" />
+                <TextView android:textSize="13.0sp" android:textColor="@color/text_muted" android:id="@id/valueDeadline" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Not set" />
+                <TextView android:textSize="16.0sp" android:textColor="@color/text_muted" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" ›" />
+            </LinearLayout>
+            <View android:background="@color/nav_divider" android:layout_width="fill_parent" android:layout_height="1.0dip" android:layout_marginStart="44.0dip" />
+            <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/fieldReminder" android:layout_width="fill_parent" android:layout_height="48.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+                <TextView android:textSize="14.0sp" android:layout_width="20.0dip" android:layout_height="wrap_content" android:text="🔔" />
+                <TextView android:textSize="14.0sp" android:textColor="@color/text_primary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="Reminder" android:layout_weight="1.0" android:layout_marginStart="10.0dip" />
+                <TextView android:textSize="13.0sp" android:textColor="@color/text_muted" android:id="@id/valueReminder" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="5 min before" />
+                <TextView android:textSize="16.0sp" android:textColor="@color/text_muted" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" ›" />
+            </LinearLayout>
+        </LinearLayout>
+        <TextView android:textSize="12.0sp" android:textColor="@color/text_muted" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="8.0dip" android:text="Priority" android:fontFamily="sans-serif-medium" />
+        <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginBottom="20.0dip">
+            <TextView android:textSize="13.0sp" android:textColor="@color/text_secondary" android:gravity="center" android:id="@id/chipLow" android:background="@drawable/bg_chip_inactive" android:layout_width="0.0dip" android:layout_height="36.0dip" android:text="Low" android:layout_weight="1.0" android:fontFamily="sans-serif-medium" android:layout_marginEnd="8.0dip" />
+            <TextView android:textSize="13.0sp" android:textColor="@color/text_secondary" android:gravity="center" android:id="@id/chipMedium" android:background="@drawable/bg_chip_inactive" android:layout_width="0.0dip" android:layout_height="36.0dip" android:text="Medium" android:layout_weight="1.0" android:fontFamily="sans-serif-medium" android:layout_marginEnd="8.0dip" />
+            <TextView android:textSize="13.0sp" android:textColor="@color/text_secondary" android:gravity="center" android:id="@id/chipHigh" android:background="@drawable/bg_chip_inactive" android:layout_width="0.0dip" android:layout_height="36.0dip" android:text="High" android:layout_weight="1.0" android:fontFamily="sans-serif-medium" />
+        </LinearLayout>
+        <TextView android:textSize="12.0sp" android:textColor="@color/text_muted" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="8.0dip" android:text="Category" android:fontFamily="sans-serif-medium" />
+        <LinearLayout android:orientation="horizontal" android:id="@id/categoryContainer" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginBottom="20.0dip">
+            <TextView android:textSize="12.0sp" android:textColor="@color/text_secondary" android:gravity="center" android:id="@id/catAcademics" android:background="@drawable/bg_tag_inactive" android:layout_width="wrap_content" android:layout_height="32.0dip" android:text="Academics" android:paddingStart="14.0dip" android:paddingEnd="14.0dip" android:layout_marginEnd="8.0dip" />
+            <TextView android:textSize="12.0sp" android:textColor="@color/text_secondary" android:gravity="center" android:id="@id/catHealth" android:background="@drawable/bg_tag_inactive" android:layout_width="wrap_content" android:layout_height="32.0dip" android:text="Health" android:paddingStart="14.0dip" android:paddingEnd="14.0dip" android:layout_marginEnd="8.0dip" />
+            <TextView android:textSize="12.0sp" android:textColor="@color/text_secondary" android:gravity="center" android:id="@id/catPersonal" android:background="@drawable/bg_tag_inactive" android:layout_width="wrap_content" android:layout_height="32.0dip" android:text="Personal" android:paddingStart="14.0dip" android:paddingEnd="14.0dip" />
+        </LinearLayout>
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:background="@drawable/bg_field_group" android:layout_width="fill_parent" android:layout_height="48.0dip" android:layout_marginBottom="16.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+            <TextView android:textSize="14.0sp" android:layout_width="20.0dip" android:layout_height="wrap_content" android:text="⚡" />
+            <TextView android:textSize="13.0sp" android:textColor="@color/text_primary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="Energy needed" android:layout_weight="1.0" android:layout_marginStart="10.0dip" />
+            <TextView android:textSize="11.0sp" android:textColor="@color/text_muted" android:gravity="center" android:id="@id/energyL" android:background="@drawable/bg_energy_dot" android:layout_width="28.0dip" android:layout_height="28.0dip" android:text="L" android:layout_marginEnd="6.0dip" />
+            <TextView android:textSize="11.0sp" android:textColor="@color/text_muted" android:gravity="center" android:id="@id/energyM" android:background="@drawable/bg_energy_dot" android:layout_width="28.0dip" android:layout_height="28.0dip" android:text="M" android:layout_marginEnd="6.0dip" />
+            <TextView android:textSize="11.0sp" android:textColor="@color/text_muted" android:gravity="center" android:id="@id/energyH" android:background="@drawable/bg_energy_dot" android:layout_width="28.0dip" android:layout_height="28.0dip" android:text="H" />
+        </LinearLayout>
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/fieldDueDate" android:layout_width="fill_parent" android:layout_height="48.0dip" android:layout_marginBottom="16.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+            <TextView android:textSize="14.0sp" android:layout_width="20.0dip" android:layout_height="wrap_content" android:text="📅" />
+            <TextView android:textSize="13.0sp" android:textColor="@color/text_primary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="Due date" android:layout_weight="1.0" android:layout_marginStart="10.0dip" />
+            <TextView android:textSize="13.0sp" android:textColor="@color/text_muted" android:id="@id/valueDueDate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Today" />
+        </LinearLayout>
+        <TextView android:textSize="14.0sp" android:textColor="@color/accent_red" android:gravity="center" android:id="@id/btnDeleteTask" android:layout_width="fill_parent" android:layout_height="44.0dip" android:layout_marginTop="12.0dip" android:layout_marginBottom="20.0dip" android:text="Delete task" android:fontFamily="sans-serif-medium" />
+        <TextView android:textSize="14.0sp" android:textColor="#ffffffff" android:gravity="center" android:id="@id/btnSaveBottom" android:background="@drawable/bg_btn_save" android:layout_width="fill_parent" android:layout_height="48.0dip" android:layout_marginBottom="60.0dip" android:text="Save task" android:fontFamily="sans-serif-medium" />
+    </LinearLayout>
+</ScrollView>
+

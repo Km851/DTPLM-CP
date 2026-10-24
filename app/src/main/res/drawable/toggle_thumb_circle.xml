@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Bottom-right dark shadow -->
+    <item android:top="3dp" android:left="2dp">
+        <shape android:shape="oval">
+            <solid android:color="#20000000" />
+            <size android:width="24dp" android:height="24dp" />
+        </shape>
+    </item>
+    <!-- Mid shadow for extra depth -->
+    <item android:top="1dp" android:left="1dp">
+        <shape android:shape="oval">
+            <solid android:color="#10000000" />
+            <size android:width="24dp" android:height="24dp" />
+        </shape>
+    </item>
+    <!-- Main white circle -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#FFFFFF" />
+            <size android:width="24dp" android:height="24dp" />
+        </shape>
+    </item>
+</layer-list>

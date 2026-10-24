@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:id="@id/main" android:background="@drawable/bg_gradient" android:layout_width="fill_parent" android:layout_height="fill_parent" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" >
+    
+    
+    
+    
+    
+    <ScrollView android:clipToPadding="false" android:layout_width="0.0dip" android:layout_height="0.0dip" android:layout_marginStart="8.0dip" android:layout_marginEnd="8.0dip" app:layout_constraintBottom_toTopOf="@+id/bottomNavBar" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" >
+        <LinearLayout android:orientation="vertical" android:paddingTop="24.0dip" android:paddingBottom="16.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:paddingStart="16.0dip" android:paddingEnd="16.0dip" >
+            <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content" >
+                <ImageButton android:id="@id/btnBack" android:background="?selectableItemBackgroundBorderless" android:layout_width="32.0dip" android:layout_height="32.0dip" android:scaleType="centerInside" android:contentDescription="Back" app:srcCompat="@drawable/ic_back_arrow" app:tint="@color/text_primary" />
+                <TextView android:textSize="22.0sp" android:textStyle="bold" android:textColor="@color/text_primary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Progress" android:fontFamily="sans-serif-medium" android:layout_marginStart="8.0dip" />
+            </LinearLayout>
+            <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="20.0dip" android:weightSum="2.0" >
+                <LinearLayout android:gravity="center" android:orientation="vertical" android:background="@drawable/bg_report_card" android:elevation="6dp" android:outlineSpotShadowColor="#25000000" android:padding="18.0dip" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" android:layout_marginEnd="6.0dip" >
+                    <TextView android:textSize="30.0sp" android:textStyle="bold" android:textColor="@color/text_primary" android:id="@id/tvCompletionRate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:fontFamily="sans-serif-medium" />
+                    <TextView android:id="@+id/tvRateLabel" android:textSize="12.0sp" android:textColor="@color/text_secondary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="weekly overall" android:fontFamily="sans-serif-light" />
+                    <TextView android:id="@+id/btnResetOverall" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="VIEW OVERALL" android:textSize="10sp" android:layout_marginTop="6dp" android:paddingStart="8dp" android:paddingEnd="8dp" android:paddingTop="2dp" android:paddingBottom="2dp" android:background="@drawable/bg_pill_white" android:backgroundTint="@color/accent_blue" android:textColor="@color/white" android:visibility="gone" android:textStyle="bold" />
+                </LinearLayout>
+                <LinearLayout android:gravity="center" android:orientation="vertical" android:background="@drawable/bg_report_card" android:elevation="6dp" android:outlineSpotShadowColor="#25000000" android:padding="18.0dip" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" android:layout_marginStart="6.0dip" >
+                    <TextView android:textSize="30.0sp" android:textStyle="bold" android:textColor="@color/text_primary" android:id="@id/tvDayStreak" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" android:fontFamily="sans-serif-medium" />
+                    <TextView android:textSize="12.0sp" android:textColor="@color/text_secondary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="day streak" android:fontFamily="sans-serif-light" />
+                    <TextView android:id="@+id/tvStreakRank" android:textSize="11.0sp" android:textStyle="bold" android:textColor="#ffffff" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="NOVICE" android:layout_marginTop="6.0dip" android:paddingStart="8.0dip" android:paddingEnd="8.0dip" android:paddingTop="2.0dip" android:paddingBottom="2.0dip" android:background="@drawable/bg_pill_white" android:backgroundTint="#9E9E9E" android:fontFamily="sans-serif-medium" />
+                </LinearLayout>
+            </LinearLayout>
+            <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" >
+                <ImageButton android:id="@+id/btnPrevWeek" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentStart="true" android:background="?selectableItemBackgroundBorderless" android:src="@android:drawable/ic_media_previous" app:tint="@color/text_primary" />
+                <TextView android:id="@+id/tvWeekLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_centerInParent="true" android:text="This week" android:textSize="15sp" android:textColor="@color/section_label" android:fontFamily="sans-serif-medium" />
+                <ImageButton android:id="@+id/btnNextWeek" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:background="?selectableItemBackgroundBorderless" android:src="@android:drawable/ic_media_next" app:tint="@color/text_primary" />
+            </RelativeLayout>
+            <LinearLayout android:gravity="bottom|center" android:orientation="horizontal" android:id="@id/weekChart" android:background="@drawable/bg_report_card" android:elevation="6dp" android:outlineSpotShadowColor="#25000000" android:padding="14.0dip" android:layout_width="fill_parent" android:layout_height="140.0dip" android:layout_marginTop="10.0dip" android:weightSum="7.0" />
+            <TextView android:textSize="15.0sp" android:textColor="@color/text_primary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24.0dip" android:text="Balance by category" android:fontFamily="sans-serif-medium" />
+            <LinearLayout android:orientation="vertical" android:id="@id/categoryContainer" android:background="@drawable/bg_report_card" android:elevation="6dp" android:outlineSpotShadowColor="#25000000" android:padding="14.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" />
+            <LinearLayout android:orientation="vertical" android:id="@+id/dailyTaskListContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:visibility="gone" />
+            <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:background="@drawable/bg_insight_card" android:elevation="6dp" android:outlineSpotShadowColor="#20000000" android:padding="14.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="20.0dip" android:layout_marginBottom="8.0dip" >
+                <TextView android:textSize="16.0sp" android:gravity="center" android:layout_width="24.0dip" android:layout_height="24.0dip" android:text="✨" />
+                <TextView android:textSize="13.0sp" android:textColor="@color/section_label" android:id="@id/tvInsight" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="Analyzing your patterns..." android:layout_weight="1.0" android:fontFamily="sans-serif" android:layout_marginStart="10.0dip" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+        <FrameLayout android:id="@+id/bottomNavBar" android:layout_width="match_parent" android:layout_height="64dp" android:layout_margin="24dp" android:background="@drawable/bg_gradient_primary_rounded" android:elevation="14dp" android:outlineSpotShadowColor="@color/purple_primary_end" android:outlineAmbientShadowColor="@color/purple_primary_start" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" >
+        
+        <View android:id="@+id/navIndicator" android:translationZ="1dp" android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginTop="6dp" android:layout_marginBottom="6dp" android:background="@drawable/bg_pill_white" />
+            
+        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:padding="6dp" android:translationZ="2dp" >
+            <FrameLayout android:id="@+id/navHome" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" >
+                <ImageView android:id="@+id/navHomeIcon" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" app:srcCompat="@drawable/ic_nav_home" app:tint="@color/white" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/navCalendar" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" >
+                <ImageView android:id="@+id/navCalendarIcon" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" app:srcCompat="@drawable/ic_nav_person" app:tint="@color/white" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/navReport" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" >
+                <ImageView android:id="@+id/navReportIcon" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" app:srcCompat="@drawable/ic_nav_report" app:tint="@color/purple_primary_end" />
+            </FrameLayout>
+            <FrameLayout android:id="@+id/navSettings" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@android:color/transparent" >
+                <ImageView android:id="@+id/navSettingsIcon" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" app:srcCompat="@drawable/ic_nav_settings" app:tint="@color/white" />
+            </FrameLayout>
+        </LinearLayout>
+    </FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+

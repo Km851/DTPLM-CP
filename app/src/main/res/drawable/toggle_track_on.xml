@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Outer dark shadow (bottom-right) -->
+    <item android:top="2dp" android:left="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#30000000" />
+            <corners android:radius="100dp" />
+            <size android:width="64dp" android:height="32dp" />
+        </shape>
+    </item>
+    <!-- Outer light highlight (top-left) -->
+    <item android:bottom="2dp" android:right="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#40FFFFFF" />
+            <corners android:radius="100dp" />
+            <size android:width="64dp" android:height="32dp" />
+        </shape>
+    </item>
+    <!-- Main track pill -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="@color/purple_primary_start"
+                android:endColor="@color/purple_primary_end"
+                android:angle="135" />
+            <corners android:radius="100dp" />
+            <size android:width="64dp" android:height="32dp" />
+        </shape>
+    </item>
+</layer-list>

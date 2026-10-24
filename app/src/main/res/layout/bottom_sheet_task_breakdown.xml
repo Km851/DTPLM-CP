@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <LinearLayout android:orientation="vertical" android:background="@color/card_white" android:padding="24.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent">
+        <TextView android:textSize="18.0sp" android:textStyle="bold" android:textColor="@color/text_primary" android:id="@id/textSheetTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Suggested Breakdown" />
+        <TextView android:textSize="14.0sp" android:textColor="@color/text_secondary" android:id="@id/textSheetContent" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="12.0dip" android:text="Generating task details..." />
+        <LinearLayout android:gravity="end" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="20.0dip">
+            <Button android:id="@id/btnCancelSheet" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cancel" style="@style/Widget.MaterialComponents.Button.TextButton" />
+            <Button android:id="@id/btnAcceptSheet" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Add to Timeline" android:layout_marginStart="8.0dip" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
+

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EZPZ — 30 ADHD & Student Ideas Picker</title>
+  <style>
+    :root {
+      --bg: #0d0914;
+      --card: #171124;
+      --card-hover: #1f1730;
+      --border: #2e2246;
+      --text: #f5f0ff;
+      --muted: #a594c4;
+      --neon-purple: #d500f9;
+      --neon-pink: #ff0055;
+      --neon-cyan: #00e5ff;
+      --neon-green: #00e676;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body {
+      background: radial-gradient(circle at top right, #231138 0%, var(--bg) 60%);
+      color: var(--text);
+      padding: 96px 20px 60px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    /* Sticky Top Bar */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: rgba(13, 9, 20, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+      padding: 14px 24px;
+    }
+    .topbar-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .title-area h1 {
+      font-size: 18px;
+      font-weight: 800;
+      background: linear-gradient(90deg, #ff0055, #d500f9, #00e5ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .stats-badges {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .badge {
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: #1a1329;
+    }
+    .badge.keep {
+      border-color: var(--neon-cyan);
+      color: var(--neon-cyan);
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.2);
+    }
+    .badge.keep.full {
+      border-color: var(--neon-green);
+      color: var(--neon-green);
+      box-shadow: 0 0 15px rgba(0, 230, 118, 0.35);
+    }
+    .badge.keep.over {
+      border-color: var(--neon-pink);
+      color: var(--neon-pink);
+      box-shadow: 0 0 15px rgba(255, 0, 85, 0.35);
+    }
+    .badge.remove {
+      border-color: #ff4d6d;
+      color: #ff8fa3;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    button.btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    button.btn:active { transform: scale(0.96); }
+    .btn-primary {
+      background: linear-gradient(135deg, #d500f9, #651fff);
+      color: #fff;
+      box-shadow: 0 0 14px rgba(213, 0, 249, 0.4);
+    }
+    .btn-secondary {
+      background: #261b3d;
+      color: var(--text);
+      border: 1px solid #3f2e63;
+    }
+    /* Filter Tabs */
+    .filter-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .tab {
+      cursor: pointer;
+      padding: 7px 15px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--card);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .tab.active {
+      background: #2b1d47;
+      color: #fff;
+      border-color: var(--neon-purple);
+    }
+    /* Idea List */
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .idea-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      border-radius: 16px;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      transition: all 0.15s ease;
+    }
+    .idea-card:hover {
+      background: var(--card-hover);
+    }
+    .idea-card.state-keep {
+      border-color: var(--neon-cyan);
+      background: linear-gradient(90deg, rgba(0, 229, 255, 0.09), rgba(23, 17, 36, 0.95));
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.15);
+    }
+    .idea-card.state-remove {
+      opacity: 0.45;
+      border-color: #3a202c;
+      background: #120d1a;
+    }
+    .idea-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .idea-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .idea-num {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: #2b1f42;
+      color: #d6b8ff;
+    }
+    .idea-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    /* Radio Buttons Group */
+    .radio-group {
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .radio-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+      border: 1.5px solid #352752;
+      background: #120d1d;
+      color: #b5a6d1;
+      transition: all 0.15s ease;
+    }
+    .radio-pill input[type="radio"] {
+      accent-color: var(--neon-cyan);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    /* 1st Radio: Remove */
+    .radio-pill.remove-pill:hover {
+      border-color: var(--neon-pink);
+      color: #fff;
+    }
+    .radio-pill.remove-pill.checked {
+      background: rgba(255, 0, 85, 0.18);
+      border-color: var(--neon-pink);
+      color: #ff80ab;
+      box-shadow: 0 0 10px rgba(255, 0, 85, 0.25);
+    }
+    .radio-pill.remove-pill input[type="radio"] {
+      accent-color: var(--neon-pink);
+    }
+    /* 2nd Radio: Keep in Top 10 */
+    .radio-pill.keep-pill:hover {
+      border-color: var(--neon-cyan);
+      color: #fff;
+    }
+    .radio-pill.keep-pill.checked {
+      background: rgba(0, 229, 255, 0.18);
+      border-color: var(--neon-cyan);
+      color: #84ffff;
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.35);
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: linear-gradient(135deg, #00e676, #00b0ff);
+      color: #061712;
+      font-weight: 800;
+      padding: 12px 20px;
+      border-radius: 14px;
+      box-shadow: 0 8px 25px rgba(0, 229, 255, 0.4);
+      display: none;
+      z-index: 200;
+    }
+    @media (max-width: 640px) {
+      body { padding-top: 150px; }
+      .idea-card { flex-direction: column; align-items: flex-start; }
+      .radio-group { width: 100%; }
+      .radio-pill { flex: 1; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="title-area">
+        <h1>⚡ EZPZ — Pick Your Top 10 Ideas</h1>
+      </div>
+      <div class="stats-badges">
+        <span id="keepCounter" class="badge keep">🔥 Keep in Top 10: 0 / 10</span>
+        <span id="removeCounter" class="badge remove">❌ Removed: 0</span>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="loadRecommended()">⭐ Auto-Pick Best 10</button>
+        <button class="btn btn-secondary" onclick="resetAll()">↺ Reset</button>
+        <button class="btn btn-primary" onclick="copyTop10()">📋 Copy My Top 10</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="filter-row">
+    <div class="tab active" onclick="setFilter('all', this)">All 30 Ideas</div>
+    <div class="tab" onclick="setFilter('keep', this)">🔥 Kept in Top 10</div>
+    <div class="tab" onclick="setFilter('unpicked', this)">⏳ Unpicked</div>
+    <div class="tab" onclick="setFilter('remove', this)">❌ Removed</div>
+  </div>
+
+  <div id="ideaList" class="list"></div>
+  <div id="toast" class="toast">✅ Copied your Top 10 to clipboard! Paste it in chat.</div>
+
+  <script>
+    const ideas = [
+      { id: 1, title: "⏰ 'Done by [Time]' Clock on Cards", desc: "Shows exact finish time (e.g. '30m • Done by 6:15 PM') to cure time blindness.", rec: true },
+      { id: 2, title: "🧠 'Park a Thought' Button in Timer", desc: "Quick 1-line popup inside the timer to dump random thoughts without losing focus.", rec: true },
+      { id: 3, title: "🪫 Energy Badge & 'Low Battery' Filter", desc: "Shows ⚡/🔋/🪫 on cards + a 1-tap filter for easy tasks when you're exhausted.", rec: true },
+      { id: 4, title: "⚡ 'Just 2 Minutes' Micro-Start", desc: "Starts a zero-pressure 2-minute warmup timer to beat task paralysis.", rec: false },
+      { id: 5, title: "✨ AI 'Split into 3 Steps' Button", desc: "Breaks a vague task (like 'DTPLM CP') into 3 tiny checkable micro-steps.", rec: true },
+      { id: 6, title: "🎧 Built-in Brown Noise in Timer", desc: "1-tap soothing Brown Noise audio generated right inside TimerActivity (0 MB added).", rec: true },
+      { id: 7, title: "🛡️ ADHD Streak Shield", desc: "Earn a shield every 3 tasks so missing 1 bad day doesn't reset your streak to 0.", rec: true },
+      { id: 8, title: "🎲 'Pick For Me' Dice Roulette", desc: "Can't decide what to start? Tap the dice icon and it picks a task for you.", rec: true },
+      { id: 9, title: "🔦 'Tunnel Vision' (1-Card Mode)", desc: "Hides the entire list and shows ONLY the #1 card so you don't feel overwhelmed.", rec: true },
+      { id: 10, title: "⛄ 'Snowball Sort' (Shortest First)", desc: "Sorts tasks from shortest to longest (10m -> 20m -> 45m) for quick momentum.", rec: false },
+      { id: 11, title: "⚡ 1-Tap Student Presets in '+'", desc: "Quick chips when adding tasks: 💻 Coding (30m), 📄 Assignment (45m), 📖 Revise (20m).", rec: false },
+      { id: 12, title: "🎙️ Multi-Task Brain Dump AI", desc: "Type 3 tasks in one messy sentence and AI adds all 3 to your timeline at once.", rec: false },
+      { id: 13, title: "♾️ 'Hyperfocus Overtime' Stopwatch", desc: "When timer hits 0:00, it counts UP (+00:01 Bonus Flow) instead of interrupting your zone.", rec: true },
+      { id: 14, title: "📳 Halfway & 5-Min Haptic Nudges", desc: "Double-buzz vibration at the 50% mark and 5-minutes-left mark during a timer.", rec: false },
+      { id: 15, title: "📌 'Where Was I?' Pause Note", desc: "When you hit Save & Quit, jot a 1-line note ('Fix loop bug') shown next to Continue.", rec: false },
+      { id: 16, title: "🌙 Late-Night Bedtime Cutoff Alert", desc: "Warns you if your remaining tasks push past 1:00 AM and offers to move Low ones.", rec: false },
+      { id: 17, title: "🍅 Auto-Chunker for 60m+ Tasks", desc: "Automatically offers to split long 90m+ tasks into 30m Part 1, Part 2, Part 3.", rec: false },
+      { id: 18, title: "🛑 'Doomscroll Interceptor' Notification", desc: "If you leave the app while a timer is running, pings you after 15s to come back.", rec: false },
+      { id: 19, title: "🤝 Study Buddy Pulse in Timer", desc: "Subtle encouraging status message every 5 mins ('10m down—crushing it!').", rec: false },
+      { id: 20, title: "🥤 5-Min 'Dopamine Break' Picker", desc: "After finishing a task, pick a healthy 5m break (Water, Stretch, Walk) instead of Reels.", rec: false },
+      { id: 21, title: "🔒 Lock-Screen Active Task Pin", desc: "Pins your #1 'Up Next' task to the notification bar so you see it on your lock screen.", rec: false },
+      { id: 22, title: "🎰 '2x XP Critical Hit!' Bonus", desc: "Completing a task has a 25% chance of a neon 2x XP burst toward your Rank.", rec: false },
+      { id: 23, title: "🧾 'Done Today' Dopamine Receipt", desc: "Tap the top-left streak card to see a receipt of everything you finished today.", rec: true },
+      { id: 24, title: "🌅 'Fresh Start' Overdue Reset", desc: "1-tap button to reschedule leftover tasks from yesterday with zero guilt.", rec: false },
+      { id: 25, title: "🚨 'Exam Panic Triage' Mode", desc: "Temporarily hides all Low/Personal tasks and locks screen to High-priority Academics.", rec: false },
+      { id: 26, title: "📊 Estimated vs. Actual Time Check", desc: "Shows in Stats if a 30m task actually took 45m so you learn your real pace.", rec: false },
+      { id: 27, title: "🎵 40Hz Gamma Focus Tone", desc: "Optional pure 40Hz focus hum alongside Brown Noise for deep coding/reading.", rec: false },
+      { id: 28, title: "🔥 Combo Multiplier on Back-to-Back Tasks", desc: "Starting the next task within 5 mins of finishing one builds a 1.5x Streak Combo.", rec: false },
+      { id: 29, title: "⏳ Visual Time-Bar Fill on Cards", desc: "Subtle progress bar inside the card showing how much of today's workload it is.", rec: false },
+      { id: 30, title: "🗣️ Voice Countdown Announcement", desc: "Optional TTS voice saying 'Halfway done' and '5 minutes left' out loud.", rec: false }
+    ];
+
+    // state[id] = 'remove' | 'keep' | undefined
+    let state = JSON.parse(localStorage.getItem('ezpz_idea_choices') || '{}');
+    let currentFilter = 'all';
+
+    function render() {
+      const container = document.getElementById('ideaList');
+      container.innerHTML = '';
+
+      let keepCount = 0;
+      let removeCount = 0;
+      Object.values(state).forEach(v => {
+        if (v === 'keep') keepCount++;
+        if (v === 'remove') removeCount++;
+      });
+
+      const kc = document.getElementById('keepCounter');
+      kc.textContent = `🔥 Keep in Top 10: ${keepCount} / 10`;
+      kc.className = 'badge keep' + (keepCount === 10 ? ' full' : keepCount > 10 ? ' over' : '');
+      document.getElementById('removeCounter').textContent = `❌ Removed: ${removeCount}`;
+
+      ideas.forEach(item => {
+        const choice = state[item.id]; // 'remove' or 'keep'
+        if (currentFilter === 'keep' && choice !== 'keep') return;
+        if (currentFilter === 'remove' && choice !== 'remove') return;
+        if (currentFilter === 'unpicked' && choice) return;
+
+        const card = document.createElement('div');
+        card.className = 'idea-card' + (choice === 'keep' ? ' state-keep' : choice === 'remove' ? ' state-remove' : '');
+
+        card.innerHTML = `
+          <div class="idea-info">
+            <div class="idea-title">
+              <span class="idea-num">#${item.id}</span>
+              <span>${item.title}</span>
+            </div>
+            <div class="idea-desc">${item.desc}</div>
+          </div>
+          <div class="radio-group">
+            <!-- 1st Radio Button: Remove from the 30 ideas -->
+            <label class="radio-pill remove-pill ${choice === 'remove' ? 'checked' : ''}" onclick="selectChoice(${item.id}, 'remove')">
+              <input type="radio" name="idea_${item.id}" value="remove" ${choice === 'remove' ? 'checked' : ''} />
+              <span>1. Remove</span>
+            </label>
+            <!-- 2nd Radio Button: Keep in Top 10 -->
+            <label class="radio-pill keep-pill ${choice === 'keep' ? 'checked' : ''}" onclick="selectChoice(${item.id}, 'keep')">
+              <input type="radio" name="idea_${item.id}" value="keep" ${choice === 'keep' ? 'checked' : ''} />
+              <span>2. Keep in Top 10</span>
+            </label>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function selectChoice(id, val) {
+      state[id] = val;
+      localStorage.setItem('ezpz_idea_choices', JSON.stringify(state));
+      render();
+    }
+
+    function setFilter(f, el) {
+      currentFilter = f;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      render();
+    }
+
+    function loadRecommended() {
+      state = {};
+      ideas.forEach(i => {
+        state[i.id] = i.rec ? 'keep' : 'remove';
+      });
+      localStorage.setItem('ezpz_idea_choices', JSON.stringify(state));
+      render();
+    }
+
+    function resetAll() {
+      state = {};
+      localStorage.removeItem('ezpz_idea_choices');
+      render();
+    }
+
+    function copyTop10() {
+      const kept = ideas.filter(i => state[i.id] === 'keep');
+      if (kept.length === 0) {
+        alert('Pick at least 1 idea with "2. Keep in Top 10" first!');
+        return;
+      }
+      const text = "My EZPZ Top Ideas:\n" + kept.map((i, idx) => `${idx + 1}. [#${i.id}] ${i.title}`).join("\n");
+      navigator.clipboard.writeText(text);
+      const t = document.getElementById('toast');
+      t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 3000);
+    }
+
+    render();
+  </script>
+</body>
+</html>
