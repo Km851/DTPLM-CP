@@ -194,7 +194,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             androidx.work.WorkManager.getInstance(this).cancelUniqueWork("MorningBriefingWorker");
         }
-        setupFilterChips();
+        lockScreenPinned = getSharedPreferences("ezpz_settings", MODE_PRIVATE).getBoolean("lock_screen_pinned", false); setupFilterChips();
 
         android.view.View navIndicator = findViewById(R.id.navIndicator);
         android.view.View bottomNavBar = findViewById(R.id.bottomNavBar);
@@ -480,7 +480,7 @@ public class MainActivity extends AppCompatActivity {
             String pauseNote = sp.getString("pause_note", "");
             clearSavedTimer();
             adapter.clearSavedTimer();
-            Intent timerIntent = new Intent(this, TimerActivity.class);
+            cancelLockScreenPinNotification(); Intent timerIntent = new Intent(this, TimerActivity.class);
             timerIntent.putExtra("task_title", item.getTitle());
             timerIntent.putExtra("task_subtitle", item.getSubtitle());
             timerIntent.putExtra("task_date", item.getDueDate());
@@ -806,7 +806,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void startTimer(TimelineItem item) { android.content.SharedPreferences activeSp = getSharedPreferences("ezpz_active_timer", MODE_PRIVATE); if (activeSp.getBoolean("is_running", false) || TimerService.running) { String prevTitle = activeSp.getString("task_title", ""); long prevLeft = activeSp.getLong("time_left", 0); long prevTotal = activeSp.getLong("total_time", prevLeft); String prevSub = activeSp.getString("task_subtitle", ""); String prevDate = activeSp.getString("task_date", TaskManager.todayDate()); if (!prevTitle.isEmpty() && !prevTitle.equalsIgnoreCase(item.getTitle()) && prevLeft > 0) { getSharedPreferences("ezpz_timer", MODE_PRIVATE).edit().putLong("time_left", prevLeft).putLong("total_time", prevTotal).putString("task_title", prevTitle).putString("task_subtitle", prevSub).putString("task_date", prevDate).apply(); } TimerService.running = false; TimerService.paused = false; activeSp.edit().clear().apply(); try { startService(new Intent(this, TimerService.class).setAction("STOP")); } catch (Exception ignored) {} } isLaunchingActiveTimer = true;
         if (isDraggingCard || (System.currentTimeMillis() - lastDragEndTime < 400)) return;
-        Intent timerIntent = new Intent(this, TimerActivity.class);
+        cancelLockScreenPinNotification(); Intent timerIntent = new Intent(this, TimerActivity.class);
         timerIntent.putExtra("task_title", item.getTitle());
         timerIntent.putExtra("task_subtitle", item.getSubtitle());
         timerIntent.putExtra("task_date", item.getDueDate());
@@ -1413,7 +1413,7 @@ public class MainActivity extends AppCompatActivity {
 
             final FrameLayout chipLockPin = createPowerChip("\uD83D\uDD12 Pin #1", d);
             chipLockPin.setOnClickListener(v -> {
-                lockScreenPinned = !lockScreenPinned;
+                lockScreenPinned = !lockScreenPinned; getSharedPreferences("ezpz_settings", MODE_PRIVATE).edit().putBoolean("lock_screen_pinned", lockScreenPinned).apply();
                 stylePowerChip(chipLockPin, lockScreenPinned);
                 if (lockScreenPinned) {
                     updateLockScreenPinNotification();
@@ -1423,7 +1423,7 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(this, "Lock-screen task unpinned", Toast.LENGTH_SHORT).show();
                 }
             });
-            chipRow.addView(chipLockPin);
+            stylePowerChip(chipLockPin, lockScreenPinned); chipRow.addView(chipLockPin);
 
             final FrameLayout chipLowBat = createPowerChip("\uD83E\uDEAB Low Energy", d);
             chipLowBat.setOnClickListener(v -> {
@@ -1456,7 +1456,7 @@ public class MainActivity extends AppCompatActivity {
             nm.createNotificationChannel(ch);
         }
 
-        List<TimelineItem> today = getTodayItems();
+        if (!lockScreenPinned || TimerService.running || getSharedPreferences("ezpz_active_timer", MODE_PRIVATE).getBoolean("is_running", false)) { nm.cancel(LOCK_PIN_NOTIF_ID); return; } List<TimelineItem> today = getTodayItems();
         if (today.isEmpty()) {
             nm.cancel(LOCK_PIN_NOTIF_ID);
             return;

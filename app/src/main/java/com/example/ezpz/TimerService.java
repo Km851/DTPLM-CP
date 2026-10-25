@@ -75,7 +75,7 @@ public class TimerService extends Service {
 
         saveTimerState();
 
-        startForeground(NOTIF_ID, buildNotif(fmt(timeLeftMs), true));
+        NotificationManager nmPin = getSystemService(NotificationManager.class); if (nmPin != null) nmPin.cancel(777); startForeground(NOTIF_ID, buildNotif(fmt(timeLeftMs), true));
         running = true;
         paused = false;
         remainingMs = timeLeftMs;
