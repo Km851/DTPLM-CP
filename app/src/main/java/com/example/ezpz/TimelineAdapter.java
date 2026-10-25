@@ -32,6 +32,7 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
     private OnSplitClickListener splitClickListener;
     private String savedTaskTitle = null;
     private long savedTimeLeft = 0;
+    private String savedPauseNote = "";
     private boolean tunnelVisionMode = false;
 
     public interface OnStartClickListener {
@@ -74,13 +75,19 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
     }
 
     public void setSavedTimer(String title, long timeLeft) {
+        setSavedTimer(title, timeLeft, "");
+    }
+
+    public void setSavedTimer(String title, long timeLeft, String pauseNote) {
         this.savedTaskTitle = title;
         this.savedTimeLeft = timeLeft;
+        this.savedPauseNote = pauseNote != null ? pauseNote : "";
     }
 
     public void clearSavedTimer() {
         this.savedTaskTitle = null;
         this.savedTimeLeft = 0;
+        this.savedPauseNote = "";
     }
 
     private int parseMinutesFromSubtitle(String sub) {
@@ -101,7 +108,7 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
         return 25;
     }
 
-    private String buildSmartSubtitle(TimelineItem item) {
+    private String buildSmartSubtitle(TimelineItem item, boolean hasSaved) {
         String e = item.getEnergyLevel();
         String energyBadge;
         if ("H".equalsIgnoreCase(e) || "High".equalsIgnoreCase(e)) {
@@ -118,10 +125,17 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
         cal.add(Calendar.MINUTE, mins);
         String doneBy = new SimpleDateFormat("h:mm a", Locale.US).format(cal.getTime());
 
+        String base;
         if (rawSub.isEmpty()) {
-            return energyBadge + " \u2022 " + mins + "m \u2022 \u23F0 Done by " + doneBy;
+            base = energyBadge + " \u2022 " + mins + "m \u2022 \u23F0 Done by " + doneBy;
+        } else {
+            base = energyBadge + " \u2022 " + rawSub + " \u2022 \u23F0 Done by " + doneBy;
         }
-        return energyBadge + " \u2022 " + rawSub + " \u2022 \u23F0 Done by " + doneBy;
+        // [#15] Show 'Where Was I?' Pause Note right on the card!
+        if (hasSaved && savedPauseNote != null && !savedPauseNote.trim().isEmpty()) {
+            base += "\n\uD83D\uDCCC Left off: " + savedPauseNote.trim();
+        }
+        return base;
     }
 
     @Override
@@ -140,8 +154,11 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
     @Override
     public void onBindViewHolder(@NonNull TimelineViewHolder holder, int position) {
         TimelineItem item = items.get(position);
+        boolean hasSaved = savedTaskTitle != null && savedTaskTitle.equals(item.getTitle());
+
         holder.title.setText(item.getTitle());
-        holder.subtitle.setText(buildSmartSubtitle(item));
+        holder.subtitle.setText(buildSmartSubtitle(item, hasSaved));
+        holder.subtitle.setMaxLines(hasSaved && !savedPauseNote.isEmpty() ? 2 : 1);
 
         float density = holder.itemView.getContext().getResources().getDisplayMetrics().density;
         String rawPriority = item.getPriority();
@@ -174,7 +191,6 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
         int in1 = (int) (3.5f * density); int in2 = (int) (6.5f * density);
         marker.setLayerInset(1, in1, in1, in1, in1); marker.setLayerInset(2, in2, in2, in2, in2);
         holder.timelineView.setMarker(marker);
-        boolean hasSaved = savedTaskTitle != null && savedTaskTitle.equals(item.getTitle());
 
         if (hasSaved) {
             if (holder.actionRowStartEdit != null) holder.actionRowStartEdit.setVisibility(View.GONE);

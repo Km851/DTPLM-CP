@@ -6,7 +6,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.CountDownTimer;
 import android.os.IBinder;
@@ -41,6 +40,7 @@ public class TimerService extends Service {
             ch.setDescription("Shows countdown while timer is running");
             ch.setShowBadge(false);
             ch.setSound(null, null);
+            ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) nm.createNotificationChannel(ch);
         }
@@ -73,7 +73,6 @@ public class TimerService extends Service {
         taskName = intent.getStringExtra("task_title");
         if (taskName == null) taskName = "Timer";
 
-        // Save state for app restore
         saveTimerState();
 
         startForeground(NOTIF_ID, buildNotif(fmt(timeLeftMs), true));
@@ -106,24 +105,6 @@ public class TimerService extends Service {
                 Intent doneBC = new Intent("com.example.ezpz.TIMER_DONE");
                 doneBC.setPackage(getPackageName());
                 sendBroadcast(doneBC);
-
-                NotificationCompat.Builder b = new NotificationCompat.Builder(TimerService.this, CHANNEL_ID)
-                        .setSmallIcon(android.R.drawable.ic_popup_reminder)
-                        .setContentTitle("Timer Complete!")
-                        .setContentText(taskName + " is done!")
-                        .setPriority(NotificationCompat.PRIORITY_HIGH)
-                        .setAutoCancel(true)
-                        .setDefaults(NotificationCompat.DEFAULT_ALL);
-
-                Intent open = new Intent(TimerService.this, MainActivity.class);
-                open.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                open.putExtra("timer_completed", true);
-                PendingIntent pi = PendingIntent.getActivity(TimerService.this, 99, open,
-                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                b.setContentIntent(pi);
-
-                NotificationManager nm = getSystemService(NotificationManager.class);
-                if (nm != null) nm.notify(NOTIF_ID + 1, b.build());
 
                 stopForeground(true);
                 stopSelf();
@@ -162,8 +143,8 @@ public class TimerService extends Service {
         remainingMs = 0;
         clearTimerState();
         Intent completeBC = new Intent("com.example.ezpz.TIMER_COMPLETE_ACTION");
-                completeBC.setPackage(getPackageName());
-                sendBroadcast(completeBC);
+        completeBC.setPackage(getPackageName());
+        sendBroadcast(completeBC);
         stopForeground(true);
         stopSelf();
     }
@@ -193,21 +174,20 @@ public class TimerService extends Service {
     }
 
     private Notification buildNotif(String time, boolean isRunning) {
-        Intent open = new Intent(this, MainActivity.class);
+        Intent open = new Intent(this, TimerActivity.class);
         open.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        open.putExtra("from_timer", true);
         PendingIntent openPi = PendingIntent.getActivity(this, 0, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(isRunning ? android.R.drawable.ic_media_play : android.R.drawable.ic_media_pause)
-                .setContentTitle(taskName)
+                .setContentTitle("\uD83D\uDD12 Active Task: " + taskName)
                 .setContentText(time + " remaining")
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setContentIntent(openPi);
 
-        // Pause/Resume action
         if (isRunning) {
             Intent pauseIntent = new Intent(this, TimerService.class).setAction(ACTION_PAUSE);
             PendingIntent pausePi = PendingIntent.getService(this, 1, pauseIntent,
@@ -220,7 +200,6 @@ public class TimerService extends Service {
             builder.addAction(android.R.drawable.ic_media_play, "Resume", resumePi);
         }
 
-        // Complete action
         Intent completeIntent = new Intent(this, TimerService.class).setAction(ACTION_COMPLETE);
         PendingIntent completePi = PendingIntent.getService(this, 3, completeIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Random;
 
 public class StreakManager {
 
@@ -16,60 +17,50 @@ public class StreakManager {
     private static final String KEY_TOTAL = "total_today";
     private static final String KEY_SHIELDS = "streak_shields";
     private static final String KEY_SHIELD_PROGRESS = "shield_progress";
+    private static final String KEY_XP = "total_xp";
+    private static final String KEY_LAST_CRIT = "last_was_crit";
 
-    private SharedPreferences prefs;
+    private final SharedPreferences prefs;
+    private final Random rng = new Random();
 
     public StreakManager(Context context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        if (!prefs.contains(KEY_SHIELDS)) prefs.edit().putInt(KEY_SHIELDS, 1).apply();
+        if (!prefs.contains(KEY_SHIELDS)) {
+            prefs.edit().putInt(KEY_SHIELDS, 1).apply();
+        }
     }
 
     private String getToday() {
         return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
     }
 
-    private String getYesterday() {
-        long oneDayMs = 24 * 60 * 60 * 1000L;
-        return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date(System.currentTimeMillis() - oneDayMs));
-    }
-
-    // Call this on app launch to evaluate day changes
     public void checkDayRollover(int currentTotalTasks) {
         String today = getToday();
         String lastDate = prefs.getString(KEY_LAST_DATE, "");
 
         if (lastDate.equals(today)) {
-            // Same day, no rollover needed
             return;
         }
 
         if (!lastDate.isEmpty()) {
-            // Day changed - evaluate yesterday's performance
             int yesterdayCompleted = prefs.getInt(KEY_COMPLETED, 0);
             int yesterdayTotal = prefs.getInt(KEY_TOTAL, 0);
             int currentStreak = prefs.getInt(KEY_STREAK, 0);
-
-            // Calculate how many days were skipped
-            long daysBetween = daysBetween(lastDate, today);
+            int shields = getShields();
 
             if (yesterdayTotal == 0) {
-                // Last active day had no tasks - neutral
-                // But if multiple days skipped with tasks still in file, that's still neutral
+                // Neutral day
             } else if (yesterdayCompleted * 2 > yesterdayTotal) {
-                // Completed more than half - streak increases!
                 currentStreak++;
                 prefs.edit().putInt(KEY_STREAK, currentStreak).apply();
-            } else if (currentStreak > 0 && getShields() > 0) {
-                prefs.edit().putInt(KEY_SHIELDS, getShields() - 1).apply();
+            } else if (currentStreak > 0 && shields > 0) {
+                // [#7] ADHD Streak Shield protects your streak from resetting on 1 bad day
+                prefs.edit().putInt(KEY_SHIELDS, shields - 1).apply();
             } else {
                 prefs.edit().putInt(KEY_STREAK, 0).apply();
             }
-
-            // If user skipped multiple days, intermediate days are neutral
-            // (no break, no increase) - this is handled by only evaluating lastDate
         }
 
-        // Reset daily counters for new day
         prefs.edit()
                 .putString(KEY_LAST_DATE, today)
                 .putInt(KEY_COMPLETED, 0)
@@ -77,32 +68,52 @@ public class StreakManager {
                 .apply();
     }
 
-    // Call when a task is completed
+    /**
+     * Records a completed task, rolls a 25% chance for [#22] '2x XP Critical Hit!',
+     * and returns true if a new [#7] Streak Shield was earned.
+     */
     public boolean taskCompleted() {
-        int completed = prefs.getInt(KEY_COMPLETED, 0) + 1;
-        int prog = prefs.getInt(KEY_SHIELD_PROGRESS, 0) + 1;
-        int shields = getShields();
-        boolean earned = false;
-        if (prog >= 3) { prog = 0; if (shields < 3) { shields++; earned = true; } }
-        prefs.edit().putInt(KEY_COMPLETED, completed).putInt(KEY_SHIELD_PROGRESS, prog).putInt(KEY_SHIELDS, shields).apply();
-        return earned;
-    }
-    public int getShields() { return prefs.getInt(KEY_SHIELDS, 1); }
+        boolean isCrit = (rng.nextInt(4) == 0); // 25% chance of 2x XP Critical Hit
+        int increment = isCrit ? 2 : 1;
 
-    // Call when tasks are added/changed
+        int completed = prefs.getInt(KEY_COMPLETED, 0) + 1;
+        int prog = prefs.getInt(KEY_SHIELD_PROGRESS, 0) + increment;
+        int xp = prefs.getInt(KEY_XP, 0) + (isCrit ? 20 : 10);
+        int shields = getShields();
+        boolean earnedShield = false;
+
+        while (prog >= 3) {
+            prog -= 3;
+            if (shields < 3) {
+                shields++;
+                earnedShield = true;
+            }
+        }
+
+        prefs.edit()
+                .putInt(KEY_COMPLETED, completed)
+                .putInt(KEY_SHIELD_PROGRESS, prog)
+                .putInt(KEY_SHIELDS, shields)
+                .putInt(KEY_XP, xp)
+                .putBoolean(KEY_LAST_CRIT, isCrit)
+                .apply();
+        return earnedShield;
+    }
+
+    public boolean wasLastCriticalHit() {
+        return prefs.getBoolean(KEY_LAST_CRIT, false);
+    }
+
+    public int getXp() {
+        return prefs.getInt(KEY_XP, 0);
+    }
+
+    public int getShields() {
+        return prefs.getInt(KEY_SHIELDS, 1);
+    }
+
     public void updateTotalTasks(int total) {
         prefs.edit().putInt(KEY_TOTAL, total).apply();
-    }
-
-    private long daysBetween(String dateStr1, String dateStr2) {
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-            long d1 = sdf.parse(dateStr1).getTime();
-            long d2 = sdf.parse(dateStr2).getTime();
-            return Math.abs(d2 - d1) / (24 * 60 * 60 * 1000L);
-        } catch (Exception e) {
-            return 1;
-        }
     }
 
     public int getStreak() {
@@ -119,21 +130,25 @@ public class StreakManager {
 
     public String getRankName() {
         int streak = getStreak();
-        if (streak >= 60) return "Legend";
-        if (streak >= 30) return "Diamond";
-        if (streak >= 14) return "Gold";
-        if (streak >= 7) return "Silver";
-        if (streak >= 3) return "Bronze";
+        int xp = getXp();
+        int effective = streak + (xp / 50);
+        if (effective >= 60) return "Legend";
+        if (effective >= 30) return "Diamond";
+        if (effective >= 14) return "Gold";
+        if (effective >= 7) return "Silver";
+        if (effective >= 3) return "Bronze";
         return "Novice";
     }
 
     public int getRankColor() {
-        int streak = getStreak();
-        if (streak >= 60) return 0xFFC26BFF; // Purple (Brand)
-        if (streak >= 30) return 0xFF00E5FF; // Diamond (Cyan)
-        if (streak >= 14) return 0xFFFFD700; // Gold
-        if (streak >= 7) return 0xFFC0C0C0;  // Silver
-        if (streak >= 3) return 0xFFCD7F32;  // Bronze
-        return 0xFF9E9E9E; // Novice (Gray)
+        String rank = getRankName();
+        switch (rank) {
+            case "Legend": return 0xFFC26BFF;
+            case "Diamond": return 0xFF00E5FF;
+            case "Gold": return 0xFFFFD700;
+            case "Silver": return 0xFFC0C0C0;
+            case "Bronze": return 0xFFCD7F32;
+            default: return 0xFF9E9E9E;
+        }
     }
 }

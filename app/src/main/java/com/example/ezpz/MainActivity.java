@@ -1,5 +1,8 @@
 package com.example.ezpz;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.ActivityNotFoundException;
 import android.os.Bundle;
@@ -13,7 +16,6 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.FrameLayout;
@@ -22,6 +24,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -31,16 +34,23 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
     private boolean isDraggingCard = false;
     private long lastDragEndTime = 0L;
     private String currentFilter = "All";
     private boolean lowBatteryFilter = false;
+    private boolean snowballSortMode = false;
+    private boolean lockScreenPinned = false;
     private static final int REQUEST_VOICE_TASK = 42;
+    private static final String LOCK_PIN_CHANNEL_ID = "ezpz_lockscreen_pin";
+    private static final int LOCK_PIN_NOTIF_ID = 777;
 
     private View move;
 
@@ -124,7 +134,6 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    // Quick-tap cancel: 4 taps in 2 seconds
     private int cancelTapCount = 0;
     private long firstTapTime = 0;
 
@@ -139,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView statsText;
     private TextView rankText;
     private TextView streakText;
-    private View inputBar; // cardView19
+    private View inputBar;
 
     // Free time quest
     private TextView questTitle;
@@ -153,7 +162,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Apply dark mode preference
         android.content.SharedPreferences modePrefs = getSharedPreferences("ezpz_settings", MODE_PRIVATE);
         if (modePrefs.getBoolean("dark_mode", false)) {
             androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
@@ -163,7 +171,6 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
-        // Schedule a daily Morning Briefing WorkManager at exactly 8:00 AM if enabled
         if (getSharedPreferences("ezpz_settings", MODE_PRIVATE).getBoolean("morning_briefing", true)) {
             java.util.Calendar currentDate = java.util.Calendar.getInstance();
             java.util.Calendar dueDate = java.util.Calendar.getInstance();
@@ -188,7 +195,7 @@ public class MainActivity extends AppCompatActivity {
             androidx.work.WorkManager.getInstance(this).cancelUniqueWork("MorningBriefingWorker");
         }
         setupFilterChips();
-        // Animation Logic for Nav Indicator
+
         android.view.View navIndicator = findViewById(R.id.navIndicator);
         android.view.View bottomNavBar = findViewById(R.id.bottomNavBar);
         if (navIndicator != null && bottomNavBar != null) {
@@ -227,7 +234,6 @@ public class MainActivity extends AppCompatActivity {
             overridePendingTransition(0, 0);
         });
 
-        // Request notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 200);
         }
@@ -238,10 +244,8 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Load profile photo on avatar
         loadProfilePhoto();
 
-        // Make EditText scroll internally when it hits maxLines
         EditText editText = findViewById(R.id.editText3);
         editText.setOnTouchListener((v, event) -> {
             if (v.getId() == R.id.editText3 && editText.getLineCount() > 4) {
@@ -253,10 +257,8 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
 
-        // Load tasks from file (or use defaults if first launch)
         allItems = TaskManager.loadTasks(this);
 
-        // Timeline setup
         RecyclerView recyclerView = findViewById(R.id.recyclerTimeline);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
@@ -267,7 +269,7 @@ public class MainActivity extends AppCompatActivity {
         adapter = new TimelineAdapter(visibleItems);
         recyclerView.setAdapter(adapter);
 
-        // Swipe to Delete (Left) and Complete (Right) with Undo Snackbar!
+        // Swipe to Delete (Left) and Complete (Right) with Undo Snackbar + [#22] 2x XP Critical Hit
         new androidx.recyclerview.widget.ItemTouchHelper(new androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(androidx.recyclerview.widget.ItemTouchHelper.UP | androidx.recyclerview.widget.ItemTouchHelper.DOWN, androidx.recyclerview.widget.ItemTouchHelper.LEFT | androidx.recyclerview.widget.ItemTouchHelper.RIGHT) {
             @Override
             public boolean onMove(androidx.recyclerview.widget.RecyclerView rv, androidx.recyclerview.widget.RecyclerView.ViewHolder vh, androidx.recyclerview.widget.RecyclerView.ViewHolder target) {
@@ -331,12 +333,14 @@ public class MainActivity extends AppCompatActivity {
                         if (wasCompleted) {
                             HistoryManager.saveCompletedTask(MainActivity.this, removed);
                             boolean earnedShield = streakManager.taskCompleted();
-                            android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
-                            if (vibrator != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                vibrator.vibrate(android.os.VibrationEffect.createOneShot(200, android.os.VibrationEffect.DEFAULT_AMPLITUDE));
-                            } else if (vibrator != null) { vibrator.vibrate(200); }
-                            showCompletionFlash();
-                            if (earnedShield) {
+                            boolean crit = streakManager.wasLastCriticalHit();
+                            triggerCompletionHaptics(crit);
+                            showCompletionFlash(crit);
+                            if (crit && earnedShield) {
+                                Toast.makeText(MainActivity.this, "\uD83C\uDFB0 2x XP CRITICAL HIT! + \uD83D\uDEE1\uFE0F Earned Streak Shield!", Toast.LENGTH_LONG).show();
+                            } else if (crit) {
+                                Toast.makeText(MainActivity.this, "\uD83C\uDFB0 2x XP CRITICAL HIT! (+20 XP & 2x Shield Progress)", Toast.LENGTH_SHORT).show();
+                            } else if (earnedShield) {
                                 Toast.makeText(MainActivity.this, "\uD83D\uDEE1\uFE0F Earned +1 Streak Shield!", Toast.LENGTH_SHORT).show();
                             }
                         }
@@ -416,7 +420,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }).attachToRecyclerView(recyclerView);
 
-        // Register timer broadcast receivers
         android.content.IntentFilter timerFilter = new android.content.IntentFilter();
         timerFilter.addAction("com.example.ezpz.TIMER_COMPLETE_ACTION");
         timerFilter.addAction("com.example.ezpz.TIMER_DONE");
@@ -428,7 +431,6 @@ public class MainActivity extends AppCompatActivity {
             registerReceiver(timerReceiver, timerFilter);
         }
 
-        // Timer display
         timerContainer = findViewById(R.id.timerContainer);
         timerProgress = findViewById(R.id.timerProgress);
         timerText = findViewById(R.id.timerText);
@@ -440,7 +442,6 @@ public class MainActivity extends AppCompatActivity {
         nextUpTask1 = findViewById(R.id.nextUpTask1);
         nextUpTask2 = findViewById(R.id.nextUpTask2);
 
-        // Complete button during timer
         btnCompleteTask.setOnClickListener(v -> {
             if (countDownTimer != null) countDownTimer.cancel();
             timerRunning = false;
@@ -449,7 +450,6 @@ public class MainActivity extends AppCompatActivity {
 
         btnSaveQuit.setOnClickListener(v -> saveAndQuitTimer());
 
-        // Single click -> open edit window
         adapter.setOnEditClickListener((item, position) -> {
             int realIndex = findTaskIndex(item);
             Intent editIntent = new Intent(MainActivity.this, TaskEditActivity.class);
@@ -467,16 +467,17 @@ public class MainActivity extends AppCompatActivity {
             overridePendingTransition(0, 0);
         });
 
-        // 1-Tap AI "3-Step Micro-Splitter" on card
+        // 1-Tap AI "3-Step Micro-Splitter" with description check!
         adapter.setOnSplitClickListener((item, position) -> splitTaskInto3Steps(item));
 
         adapter.setOnLongClickListener(null);
 
-        // Continue saved timer -> launch TimerActivity with saved time
+        // Continue saved timer -> launch TimerActivity with saved time and pause_note (#15)
         adapter.setOnContinueClickListener((item, position) -> {
             android.content.SharedPreferences sp = getSharedPreferences("ezpz_timer", MODE_PRIVATE);
             long savedTime = sp.getLong("time_left", 0);
             long savedTotal = sp.getLong("total_time", savedTime);
+            String pauseNote = sp.getString("pause_note", "");
             clearSavedTimer();
             adapter.clearSavedTimer();
             Intent timerIntent = new Intent(this, TimerActivity.class);
@@ -486,18 +487,17 @@ public class MainActivity extends AppCompatActivity {
             timerIntent.putExtra("is_continue", true);
             timerIntent.putExtra("saved_time", savedTime);
             timerIntent.putExtra("saved_total", savedTotal);
+            timerIntent.putExtra("pause_note", pauseNote);
             startActivityForResult(timerIntent, 200);
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         });
 
-        // Restart saved timer
         adapter.setOnRestartClickListener((item, position) -> {
             clearSavedTimer();
             adapter.clearSavedTimer();
             startTimer(item);
         });
 
-        // Start button -> reorder + start timer
         adapter.setOnStartClickListener((item, position) -> {
             int allItemsIndex = findTaskIndex(item);
             if (allItemsIndex > 0 && allItemsIndex < allItems.size()) {
@@ -511,14 +511,12 @@ public class MainActivity extends AppCompatActivity {
             startTimer(item);
         });
 
-        // Init inline breakdown sheet
         inlineBreakdownSheet = findViewById(R.id.inlineBreakdownSheet);
         textSheetTitle = findViewById(R.id.textSheetTitle);
         textSheetContent = findViewById(R.id.textSheetContent);
         btnCancelSheet = findViewById(R.id.btnCancelSheet);
         btnAcceptSheet = findViewById(R.id.btnAcceptSheet);
 
-        // Stats bar text
         statsText = findViewById(R.id.textView5);
         rankText = findViewById(R.id.rankText);
         streakText = findViewById(R.id.textView6);
@@ -531,12 +529,10 @@ public class MainActivity extends AppCompatActivity {
         streakManager.checkDayRollover(countTasksDueToday());
         updateStats();
 
-        // Free time quest
         questTitle = findViewById(R.id.textView);
         questAcceptBtn = findViewById(R.id.button);
         loadFreeTimeQuest();
 
-        // Views to toggle
         upNextLabel = findViewById(R.id.textView7);
         if (upNextLabel != null) {
             upNextLabel.setText("Up next \u21C5");
@@ -549,19 +545,16 @@ public class MainActivity extends AppCompatActivity {
             cardView3.setOnClickListener(v -> showDoneTodayReceiptDialog());
         }
 
-        // Settings nav button
         findViewById(R.id.navSettings).setOnClickListener(v -> {
             Intent i = new Intent(this, SettingsActivity.class); i.putExtra("prev_tab", 0); startActivity(i);
             overridePendingTransition(0, 0);
         });
 
-        // Report nav button
         findViewById(R.id.navReport).setOnClickListener(v -> {
             Intent i = new Intent(this, ReportActivity.class); i.putExtra("prev_tab", 0); startActivity(i);
             overridePendingTransition(0, 0);
         });
 
-        // AI Briefing button
         findViewById(R.id.btnBriefing).setOnClickListener(v -> {
             v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
             v.animate().scaleX(0.8f).scaleY(0.8f).setDuration(50).withEndAction(() -> {
@@ -606,7 +599,6 @@ public class MainActivity extends AppCompatActivity {
             }).start();
         });
 
-        // + button -> open new task editor
         findViewById(R.id.btnAddTask).setOnClickListener(v -> {
             v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
             v.animate().scaleX(0.8f).scaleY(0.8f).setDuration(50).withEndAction(() -> {
@@ -619,7 +611,6 @@ public class MainActivity extends AppCompatActivity {
             }).start();
         });
 
-        // Send button -> ask Gemini to edit the task list
         android.view.View sendButton = findViewById(R.id.cardView17);
         android.view.View voiceButton = findViewById(R.id.cardView18);
         EditText taskInput = findViewById(R.id.editText3);
@@ -631,7 +622,6 @@ public class MainActivity extends AppCompatActivity {
             if (!userMessage.isEmpty()) {
                 taskInput.setText("");
 
-                // Quick-add: prefix with + or ! to skip AI
                 if (userMessage.startsWith("+") || userMessage.startsWith("!")) {
                     String quickTitle = userMessage.substring(1).trim();
                     if (!quickTitle.isEmpty()) {
@@ -649,17 +639,18 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                runAiTaskEdit(userMessage, "Updating Tasks...");
+                // [#12] Multi-Task Brain Dump AI support
+                String brainDumpInstruction = userMessage
+                        + "\n(Note: If my message mentions multiple tasks or a brain-dump list, extract and add EVERY task separately with smart durations, categories, and energy levels.)";
+                runAiTaskEdit(brainDumpInstruction, "Updating Tasks...");
             }
         });
 
-        // Cancel -> discard changes
         btnCancelSheet.setOnClickListener(v -> {
             lastAiJson = "";
             hideBreakdownSheet();
         });
 
-        // Accept -> apply the new task list
         btnAcceptSheet.setOnClickListener(v -> {
             if (!lastAiJson.isEmpty()) {
                 List<TimelineItem> newTasks = TaskManager.parseJsonResponse(lastAiJson);
@@ -742,9 +733,45 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * [#5] Smarter 3-Step Splitter:
+     * If the task has no description, asks the user for 1 line of context first so AI can divide it accurately!
+     */
     private void splitTaskInto3Steps(TimelineItem item) {
-        String prompt = "Break the task \"" + item.getTitle() + "\" (due " + item.getDueDate() + ", category " + item.getCategory() + ", priority " + item.getPriority() + ") "
-                + "into 3 tiny, concrete, actionable 10-minute micro-steps placed right at the top of the list so I can start immediately without overwhelm. "
+        String existingDesc = item.getDescription() != null ? item.getDescription().trim() : "";
+        if (existingDesc.isEmpty()) {
+            float d = getResources().getDisplayMetrics().density;
+            EditText input = new EditText(this);
+            input.setHint("e.g., Write intro, draw block diagram, test code");
+            int pad = (int) (16 * d);
+            LinearLayout wrap = new LinearLayout(this);
+            wrap.setOrientation(LinearLayout.VERTICAL);
+            wrap.setPadding(pad, pad / 2, pad, 0);
+            wrap.addView(input);
+
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("\u2728 Add Context for 3 Steps")
+                    .setMessage("\"" + item.getTitle() + "\" doesn't have a description yet.\nAdd a quick 1-line note on what needs to be done so AI can split it into 3 accurate steps:")
+                    .setView(wrap)
+                    .setPositiveButton("Split into 3 Steps", (dialog, which) -> {
+                        String userContext = input.getText().toString().trim();
+                        execute3StepSplit(item, userContext);
+                    })
+                    .setNeutralButton("Use Title Only", (dialog, which) -> execute3StepSplit(item, ""))
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        } else {
+            execute3StepSplit(item, existingDesc);
+        }
+    }
+
+    private void execute3StepSplit(TimelineItem item, String contextDesc) {
+        String contextClause = (contextDesc != null && !contextDesc.isEmpty())
+                ? (" with details/topic: \"" + contextDesc + "\"")
+                : "";
+        String prompt = "Break the task \"" + item.getTitle() + "\"" + contextClause
+                + " (due " + item.getDueDate() + ", category " + item.getCategory() + ", priority " + item.getPriority() + ") "
+                + "into 3 specific, concrete, actionable micro-steps placed right at the top of the list so I can start immediately. "
                 + "Replace the original task \"" + item.getTitle() + "\" with those 3 micro-steps and keep all other tasks intact.";
         runAiTaskEdit(prompt, "\u2728 Splitting into 3 Micro-Steps...");
     }
@@ -761,6 +788,7 @@ public class MainActivity extends AppCompatActivity {
             updateStats();
         });
         ReminderHelper.scheduleAll(this, allItems);
+        checkSavedTimer();
         updateVisibleItems();
         adapter.notifyDataSetChanged();
         streakManager.updateTotalTasks(countTasksDueToday() + streakManager.getCompletedToday());
@@ -784,66 +812,6 @@ public class MainActivity extends AppCompatActivity {
         timerIntent.putExtra("task_date", item.getDueDate());
         startActivityForResult(timerIntent, 200);
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
-    }
-
-    private void resumeTimer() {
-        try {
-            Intent svc = new Intent(this, TimerService.class);
-            svc.putExtra("time_left", timeLeftMillis);
-            svc.putExtra("total_time", totalTimeMillis);
-            svc.putExtra("task_title", currentTimerTask != null ? currentTimerTask.getTitle() : "Timer");
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(svc);
-            } else { startService(svc); }
-        } catch (Exception ignored) {}
-
-        countDownTimer = new CountDownTimer(timeLeftMillis, 1000) {
-            @Override
-            public void onTick(long millisUntilFinished) {
-                timeLeftMillis = millisUntilFinished;
-                updateTimerText();
-                updateProgress();
-            }
-
-            @Override
-            public void onFinish() {
-                timeLeftMillis = 0;
-                updateTimerText();
-                timerProgress.setProgress(1000);
-                timerRunning = false;
-                try { startService(new Intent(MainActivity.this, TimerService.class).setAction("STOP")); } catch (Exception ignored) {}
-                onTimerComplete();
-            }
-        }.start();
-        timerRunning = true;
-        timerText.setAlpha(1.0f);
-    }
-
-    private void pauseTimer() {
-        if (countDownTimer != null) {
-            countDownTimer.cancel();
-        }
-        timerRunning = false;
-        timerText.setAlpha(0.4f);
-        try {
-            Intent pauseSvc = new Intent(this, TimerService.class).setAction("PAUSE");
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(pauseSvc);
-            } else { startService(pauseSvc); }
-        } catch (Exception ignored) {}
-    }
-
-    private void cancelTimer() {
-        if (countDownTimer != null) {
-            countDownTimer.cancel();
-        }
-        timerRunning = false;
-        cancelTapCount = 0;
-        clearSavedTimer();
-        try { startService(new Intent(this, TimerService.class).setAction("STOP")); } catch (Exception ignored) {}
-
-        timerButtonRow.setVisibility(View.GONE);
-        exitTimerMode();
     }
 
     private void onTimerComplete() {
@@ -872,11 +840,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkSavedTimer() {
+        if (adapter == null) return;
         android.content.SharedPreferences sp = getSharedPreferences("ezpz_timer", MODE_PRIVATE);
         long savedTime = sp.getLong("time_left", 0);
         String savedTitle = sp.getString("task_title", "");
+        String pauseNote = sp.getString("pause_note", "");
         if (savedTime > 0 && !savedTitle.isEmpty()) {
-            adapter.setSavedTimer(savedTitle, savedTime);
+            adapter.setSavedTimer(savedTitle, savedTime, pauseNote);
         } else {
             adapter.clearSavedTimer();
         }
@@ -948,34 +918,47 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private int parseMinutes(String subtitle) {
-        if (subtitle == null || subtitle.isEmpty()) return 0;
+        if (subtitle == null || subtitle.isEmpty()) return 25;
         try {
-            String lower = subtitle.toLowerCase();
-            java.util.regex.Matcher hourMatch = java.util.regex.Pattern
-                    .compile("(\\d+\\.?\\d*)\\s*(hours?|hrs?|h)\\b").matcher(lower);
+            String lower = subtitle.toLowerCase(Locale.US);
+            Matcher hourMatch = Pattern.compile("(\\d+\\.?\\d*)\\s*(hours?|hrs?|h)\\b").matcher(lower);
             if (hourMatch.find()) {
                 double hours = Double.parseDouble(hourMatch.group(1));
                 int extraMin = 0;
-                java.util.regex.Matcher extraMinMatch = java.util.regex.Pattern
-                        .compile("(\\d+)\\s*(min|m)\\b").matcher(lower);
+                Matcher extraMinMatch = Pattern.compile("(\\d+)\\s*(min|m)\\b").matcher(lower);
                 if (extraMinMatch.find()) {
                     extraMin = Integer.parseInt(extraMinMatch.group(1));
                 }
-                return (int) (hours * 60) + extraMin;
+                return Math.max(1, (int) (hours * 60) + extraMin);
             }
-            java.util.regex.Matcher minMatch = java.util.regex.Pattern
-                    .compile("(\\d+)\\s*(min|mins|m)\\b").matcher(lower);
+            Matcher minMatch = Pattern.compile("(\\d+)\\s*(min|mins|m)\\b").matcher(lower);
             if (minMatch.find()) {
-                return Integer.parseInt(minMatch.group(1));
+                return Math.max(1, Integer.parseInt(minMatch.group(1)));
             }
         } catch (Exception ignored) {}
-        return 0;
+        return 25;
     }
 
-    private void showCompletionFlash() {
+    private void triggerCompletionHaptics(boolean criticalHit) {
+        android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+        if (vibrator == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (criticalHit) {
+                vibrator.vibrate(android.os.VibrationEffect.createWaveform(new long[]{0, 90, 60, 140, 60, 220}, -1));
+            } else {
+                vibrator.vibrate(android.os.VibrationEffect.createOneShot(200, android.os.VibrationEffect.DEFAULT_AMPLITUDE));
+            }
+        } else {
+            vibrator.vibrate(criticalHit ? 400 : 200);
+        }
+    }
+
+    private void showCompletionFlash(boolean criticalHit) {
         android.widget.TextView flash = new android.widget.TextView(this);
-        flash.setText("\u2705");
-        flash.setTextSize(100);
+        flash.setText(criticalHit ? "\uD83C\uDFB0 2x XP!" : "\u2705");
+        flash.setTextSize(criticalHit ? 56 : 100);
+        flash.setTextColor(0xFFFFD700);
+        flash.setTypeface(null, android.graphics.Typeface.BOLD);
         flash.setGravity(android.view.Gravity.CENTER);
         android.widget.FrameLayout root = (android.widget.FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
         android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
@@ -986,7 +969,7 @@ public class MainActivity extends AppCompatActivity {
         flash.setScaleY(0.2f);
         flash.animate().alpha(1f).scaleX(1.2f).scaleY(1.2f).setDuration(400)
                 .setInterpolator(new android.view.animation.OvershootInterpolator())
-                .withEndAction(() -> flash.animate().alpha(0f).scaleX(2.0f).scaleY(2.0f).setDuration(300).setStartDelay(200)
+                .withEndAction(() -> flash.animate().alpha(0f).scaleX(1.8f).scaleY(1.8f).setDuration(350).setStartDelay(250)
                         .withEndAction(() -> root.removeView(flash)).start()).start();
     }
 
@@ -1062,6 +1045,8 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == TimerActivity.RESULT_COMPLETED && data != null) {
                 String title = data.getStringExtra("task_title");
                 String date = data.getStringExtra("task_date");
+                int estMins = data.getIntExtra("estimated_minutes", 25);
+                int actSecs = data.getIntExtra("actual_seconds", 0);
                 for (int i = 0; i < allItems.size(); i++) {
                     TimelineItem item = allItems.get(i);
                     if (item.getTitle().equals(title) && item.getDueDate().equals(date)) {
@@ -1069,9 +1054,16 @@ public class MainActivity extends AppCompatActivity {
                         GoogleCalendarHelper.deleteTaskFromCalendar(this, item);
                         HistoryManager.saveCompletedTask(this, item);
                         boolean earnedShield = streakManager.taskCompleted();
-                        showCompletionFlash();
-                        if (earnedShield) {
-                            Toast.makeText(this, "\uD83D\uDEE1\uFE0F Earned +1 Streak Shield!", Toast.LENGTH_SHORT).show();
+                        boolean crit = streakManager.wasLastCriticalHit();
+                        triggerCompletionHaptics(crit);
+                        showCompletionFlash(crit);
+                        String paceMsg = String.format(Locale.US, "\uD83D\uDCCA Est: %dm \u2022 Actual: %dm %ds", estMins, actSecs / 60, actSecs % 60);
+                        if (crit) {
+                            Toast.makeText(this, "\uD83C\uDFB0 2x XP CRITICAL HIT! " + paceMsg, Toast.LENGTH_LONG).show();
+                        } else if (earnedShield) {
+                            Toast.makeText(this, "\uD83D\uDEE1\uFE0F +1 Streak Shield! " + paceMsg, Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(this, "Task complete! " + paceMsg, Toast.LENGTH_LONG).show();
                         }
                         break;
                     }
@@ -1085,8 +1077,9 @@ public class MainActivity extends AppCompatActivity {
             } else if (resultCode == TimerActivity.RESULT_SAVED && data != null) {
                 String title = data.getStringExtra("task_title");
                 long timeLeft = data.getLongExtra("time_left", 0);
+                String pauseNote = data.getStringExtra("pause_note");
                 if (title != null && timeLeft > 0) {
-                    adapter.setSavedTimer(title, timeLeft);
+                    adapter.setSavedTimer(title, timeLeft, pauseNote);
                 } else {
                     adapter.clearSavedTimer();
                 }
@@ -1237,7 +1230,7 @@ public class MainActivity extends AppCompatActivity {
             int shields = streakManager.getShields();
             streakText.setText("\uD83D\uDD25 " + streak + "d \u2022 \uD83D\uDEE1\uFE0F" + shields);
             if (rankText != null) {
-                rankText.setText("Rank: " + streakManager.getRankName());
+                rankText.setText(streakManager.getRankName() + " \u2022 " + streakManager.getXp() + " XP");
                 rankText.setTextColor(streakManager.getRankColor());
             }
             View streakCard = findViewById(R.id.cardView3);
@@ -1246,6 +1239,9 @@ public class MainActivity extends AppCompatActivity {
             } else if (streakCard != null) {
                 streakCard.clearAnimation();
             }
+        }
+        if (lockScreenPinned) {
+            updateLockScreenPinNotification();
         }
     }
 
@@ -1312,9 +1308,11 @@ public class MainActivity extends AppCompatActivity {
         if (countTasksDueToday() == 0 && upNextLabel != null) {
             upNextLabel.setText("\uD83C\uDF89 All done for today!");
         } else if (upNextLabel != null) {
-            String suffix = (adapter != null && adapter.isTunnelVisionMode()) ? " \u2022 \uD83D\uDD26 1-Card" : " \u21C5";
-            if (lowBatteryFilter) suffix += " \u2022 \uD83E\uDEAB Low";
-            upNextLabel.setText("Up next" + suffix);
+            StringBuilder sb = new StringBuilder("Up next \u21C5");
+            if (adapter != null && adapter.isTunnelVisionMode()) sb.append(" \u2022 \uD83D\uDD26 1-Card");
+            if (snowballSortMode) sb.append(" \u2022 \u26C4 Snowball");
+            if (lowBatteryFilter) sb.append(" \u2022 \uD83E\uDEAB Low");
+            upNextLabel.setText(sb.toString());
         }
     }
 
@@ -1373,10 +1371,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Inject ADHD Power Chips into filterScrollView row:
-        // 1) 🔦 1-Card (Tunnel Vision)
-        // 2) 🪫 Low Energy (Low Battery Filter)
-        // 3) 🎲 Pick 1 (Task Roulette)
-        // 4) 🧾 Receipt (Done Today Dopamine Receipt)
+        // 1) [#9]  🔦 1-Card (Tunnel Vision)
+        // 2) [#10] ⛄ Snowball (Shortest First Sort)
+        // 3) [#8]  🎲 Pick 1 (Dice Roulette — without 2m sprint!)
+        // 4) [#21] 🔒 Pin #1 (Lock-Screen Active Task Pin)
+        // 5) [#3]  🪫 Low Energy
+        // 6) [#23/#26] 🧾 Receipt & Pace
         View healthChip = findViewById(R.id.filterHealth);
         if (healthChip != null && healthChip.getParent() instanceof LinearLayout) {
             LinearLayout chipRow = (LinearLayout) healthChip.getParent();
@@ -1389,9 +1389,41 @@ public class MainActivity extends AppCompatActivity {
                 adapter.setTunnelVisionMode(next);
                 stylePowerChip(chipTunnel, next);
                 updateEmptyState();
-                Toast.makeText(this, next ? "\uD83D\uDD26 Tunnel Vision ON: Only showing #1 task" : "Showing Top 3 tasks", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, next ? "\uD83D\uDD26 Tunnel Vision ON: Showing only #1 task" : "Showing Top 3 tasks", Toast.LENGTH_SHORT).show();
             });
             chipRow.addView(chipTunnel);
+
+            final FrameLayout chipSnowball = createPowerChip("\u26C4 Snowball", d);
+            chipSnowball.setOnClickListener(v -> {
+                snowballSortMode = !snowballSortMode;
+                stylePowerChip(chipSnowball, snowballSortMode);
+                if (snowballSortMode) {
+                    Collections.sort(allItems, (a, b) -> Integer.compare(parseMinutes(a.getSubtitle()), parseMinutes(b.getSubtitle())));
+                }
+                updateVisibleItems();
+                if (adapter != null) adapter.notifyDataSetChanged();
+                updateEmptyState();
+                Toast.makeText(this, snowballSortMode ? "\u26C4 Snowball Sort ON: Shortest tasks first!" : "Snowball Sort OFF", Toast.LENGTH_SHORT).show();
+            });
+            chipRow.addView(chipSnowball);
+
+            final FrameLayout chipRoulette = createPowerChip("\uD83C\uDFB2 Pick 1", d);
+            chipRoulette.setOnClickListener(v -> spinTaskRoulette());
+            chipRow.addView(chipRoulette);
+
+            final FrameLayout chipLockPin = createPowerChip("\uD83D\uDD12 Pin #1", d);
+            chipLockPin.setOnClickListener(v -> {
+                lockScreenPinned = !lockScreenPinned;
+                stylePowerChip(chipLockPin, lockScreenPinned);
+                if (lockScreenPinned) {
+                    updateLockScreenPinNotification();
+                    Toast.makeText(this, "\uD83D\uDD12 #1 Task pinned to Lock Screen & Notification Bar!", Toast.LENGTH_SHORT).show();
+                } else {
+                    cancelLockScreenPinNotification();
+                    Toast.makeText(this, "Lock-screen task unpinned", Toast.LENGTH_SHORT).show();
+                }
+            });
+            chipRow.addView(chipLockPin);
 
             final FrameLayout chipLowBat = createPowerChip("\uD83E\uDEAB Low Energy", d);
             chipLowBat.setOnClickListener(v -> {
@@ -1400,18 +1432,58 @@ public class MainActivity extends AppCompatActivity {
                 updateVisibleItems();
                 if (adapter != null) adapter.notifyDataSetChanged();
                 updateEmptyState();
-                Toast.makeText(this, lowBatteryFilter ? "\uD83E\uDEAB Low Battery Mode: Prioritizing easy/low-energy tasks" : "All energy levels shown", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, lowBatteryFilter ? "\uD83E\uDEAB Low Battery Mode: Showing easy/low-energy tasks" : "All energy levels shown", Toast.LENGTH_SHORT).show();
             });
             chipRow.addView(chipLowBat);
-
-            final FrameLayout chipRoulette = createPowerChip("\uD83C\uDFB2 Pick 1", d);
-            chipRoulette.setOnClickListener(v -> spinTaskRoulette());
-            chipRow.addView(chipRoulette);
 
             final FrameLayout chipReceipt = createPowerChip("\uD83E\uDDFE Receipt", d);
             chipReceipt.setOnClickListener(v -> showDoneTodayReceiptDialog());
             chipRow.addView(chipReceipt);
         }
+    }
+
+    /**
+     * [#21] Lock-Screen Active Task Pin
+     */
+    private void updateLockScreenPinNotification() {
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (nm == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel ch = new NotificationChannel(
+                    LOCK_PIN_CHANNEL_ID, "Lock-Screen Task Pin", NotificationManager.IMPORTANCE_LOW);
+            ch.setDescription("Pins your #1 Up Next task on the lock screen");
+            ch.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
+            nm.createNotificationChannel(ch);
+        }
+
+        List<TimelineItem> today = getTodayItems();
+        if (today.isEmpty()) {
+            nm.cancel(LOCK_PIN_NOTIF_ID);
+            return;
+        }
+        TimelineItem top = visibleItems.isEmpty() ? today.get(0) : visibleItems.get(0);
+
+        Intent startIntent = new Intent(this, MainActivity.class);
+        startIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startIntent.putExtra("start_task_title", top.getTitle());
+        PendingIntent startPi = PendingIntent.getActivity(this, 701, startIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder b = new NotificationCompat.Builder(this, LOCK_PIN_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setContentTitle("\uD83D\uDD12 Up Next: " + top.getTitle())
+                .setContentText((top.getSubtitle().isEmpty() ? "25 min" : top.getSubtitle()) + " \u2022 Energy: " + top.getEnergyLevel())
+                .setOngoing(true)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentIntent(startPi)
+                .addAction(android.R.drawable.ic_media_play, "Start Timer", startPi);
+
+        nm.notify(LOCK_PIN_NOTIF_ID, b.build());
+    }
+
+    private void cancelLockScreenPinNotification() {
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (nm != null) nm.cancel(LOCK_PIN_NOTIF_ID);
     }
 
     private FrameLayout createPowerChip(String text, float d) {
@@ -1452,6 +1524,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * [#8] 'Pick For Me' Dice Roulette (2-min micro-sprint removed per user request)
+     */
     private void spinTaskRoulette() {
         List<TimelineItem> candidates = getTodayItems();
         if (candidates.isEmpty()) {
@@ -1460,21 +1535,14 @@ public class MainActivity extends AppCompatActivity {
         }
         final TimelineItem chosen = candidates.get(new Random().nextInt(candidates.size()));
         new android.app.AlertDialog.Builder(this)
-                .setTitle("\uD83C\uDFB2 Task Roulette Picked:")
+                .setTitle("\uD83C\uDFB2 Dice Roulette Picked:")
                 .setMessage("\"" + chosen.getTitle() + "\"\n\n"
                         + (chosen.getSubtitle().isEmpty() ? "25 min" : chosen.getSubtitle())
                         + " \u2022 Energy: " + chosen.getEnergyLevel()
-                        + "\n\nCommit to just 2 minutes to break inertia, or start the full timer!")
-                .setPositiveButton("\u26A1 2-Min Micro-Sprint", (d, w) -> {
-                    Intent timerIntent = new Intent(this, TimerActivity.class);
-                    timerIntent.putExtra("task_title", chosen.getTitle());
-                    timerIntent.putExtra("task_subtitle", "2 min");
-                    timerIntent.putExtra("task_date", chosen.getDueDate());
-                    startActivityForResult(timerIntent, 200);
-                    overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
-                })
-                .setNeutralButton("\u25B6 Full Timer", (d, w) -> startTimer(chosen))
-                .setNegativeButton("Spin Again", (d, w) -> spinTaskRoulette())
+                        + "\n\nReady to jump in?")
+                .setPositiveButton("\u25B6 Start Timer", (d, w) -> startTimer(chosen))
+                .setNeutralButton("\uD83C\uDFB2 Spin Again", (d, w) -> spinTaskRoulette())
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
@@ -1491,32 +1559,49 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        android.content.SharedPreferences pacePrefs = getSharedPreferences("ezpz_pace_stats", MODE_PRIVATE);
+        String paceLog = pacePrefs.getString("pace_log_" + today, "");
+
+        android.content.SharedPreferences parkedPrefs = getSharedPreferences("ezpz_parked", MODE_PRIVATE);
+        String parkedThoughts = parkedPrefs.getString("thoughts", "");
+
         StringBuilder sb = new StringBuilder();
         sb.append("==============================\n");
         sb.append("   EZPZ DOPAMINE RECEIPT \uD83E\uDDFE\n");
         sb.append("   Date: ").append(today).append("\n");
         sb.append("==============================\n\n");
         if (doneToday.isEmpty()) {
-            sb.append("No tasks checked off yet today.\nSwipe right on any card or run a 2-min sprint to print your first win!\n\n");
+            sb.append("No tasks checked off yet today.\nSwipe right on any card or complete a timer to print your wins!\n\n");
         } else {
             for (int i = 0; i < doneToday.size(); i++) {
                 TimelineItem t = doneToday.get(i);
                 int m = parseMinutes(t.getSubtitle());
-                if (m <= 0) m = 25;
                 sb.append(String.format(Locale.US, "%d. \u2705 %s (%dm)\n", i + 1, t.getTitle(), m));
             }
             sb.append("\n------------------------------\n");
             sb.append("ITEMS COMPLETED:  ").append(doneToday.size()).append("\n");
-            sb.append("FOCUS INVESTED:   ").append(totalMins).append(" mins\n");
+            sb.append("EST. FOCUS TIME:  ").append(totalMins).append(" mins\n");
         }
+        if (!paceLog.isEmpty()) {
+            sb.append("\n\uD83D\uDCCA EST. vs ACTUAL PACE:\n").append(paceLog).append("\n");
+        }
+        if (!parkedThoughts.isEmpty()) {
+            sb.append("\n\uD83E\uDDE0 PARKED THOUGHTS:\n").append(parkedThoughts).append("\n");
+        }
+        sb.append("------------------------------\n");
         sb.append("STREAK:           \uD83D\uDD25 ").append(streakManager.getStreak()).append(" days (").append(streakManager.getRankName()).append(")\n");
+        sb.append("XP SCORE:         \uD83C\uDFB0 ").append(streakManager.getXp()).append(" XP\n");
         sb.append("STREAK SHIELDS:   \uD83D\uDEE1\uFE0F ").append(streakManager.getShields()).append(" / 3 active\n");
         sb.append("==============================");
 
         new android.app.AlertDialog.Builder(this)
-                .setTitle("\uD83E\uDDFE Done Today Receipt")
+                .setTitle("\uD83E\uDDFE Done Today & Pace Receipt")
                 .setMessage(sb.toString())
                 .setPositiveButton("Awesome!", null)
+                .setNeutralButton("Clear Parked Thoughts", (d, w) -> {
+                    parkedPrefs.edit().remove("thoughts").apply();
+                    Toast.makeText(this, "Parked thoughts cleared", Toast.LENGTH_SHORT).show();
+                })
                 .show();
     }
 
@@ -1596,6 +1681,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateVisibleItems() {
         visibleItems.clear();
+        List<TimelineItem> candidates = new ArrayList<>();
         for (TimelineItem item : allItems) {
             if (isDueToday(item)) {
                 String cat = item.getCategory();
@@ -1607,23 +1693,26 @@ public class MainActivity extends AppCompatActivity {
                             continue;
                         }
                     }
-                    visibleItems.add(item);
-                    if (visibleItems.size() == 3) break;
+                    candidates.add(item);
                 }
             }
         }
-        // Fallback if lowBatteryFilter filtered out everything: show up to 3 tasks anyway so screen isn't blank
-        if (visibleItems.isEmpty() && lowBatteryFilter) {
+        if (candidates.isEmpty() && lowBatteryFilter) {
             for (TimelineItem item : allItems) {
                 if (isDueToday(item)) {
                     String cat = item.getCategory();
                     if (cat == null || cat.trim().isEmpty()) cat = "Personal";
                     if (currentFilter.equals("All") || cat.equalsIgnoreCase(currentFilter)) {
-                        visibleItems.add(item);
-                        if (visibleItems.size() == 3) break;
+                        candidates.add(item);
                     }
                 }
             }
+        }
+        if (snowballSortMode) {
+            Collections.sort(candidates, (a, b) -> Integer.compare(parseMinutes(a.getSubtitle()), parseMinutes(b.getSubtitle())));
+        }
+        for (int i = 0; i < candidates.size() && visibleItems.size() < 3; i++) {
+            visibleItems.add(candidates.get(i));
         }
         for (int i = 0; i < visibleItems.size(); i++) {
             TimelineItem cur = visibleItems.get(i);
@@ -1635,6 +1724,9 @@ public class MainActivity extends AppCompatActivity {
             ));
         }
         checkQuestValidity();
+        if (lockScreenPinned) {
+            updateLockScreenPinNotification();
+        }
     }
 
     private void checkQuestValidity() {
@@ -1691,12 +1783,11 @@ public class MainActivity extends AppCompatActivity {
             currentTimerTask = null;
             HistoryManager.saveCompletedTask(MainActivity.this, completedTask);
             boolean earnedShield = streakManager.taskCompleted();
-            android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
-            if (vibrator != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(android.os.VibrationEffect.createOneShot(200, android.os.VibrationEffect.DEFAULT_AMPLITUDE));
-            } else if (vibrator != null) { vibrator.vibrate(200); }
-            showCompletionFlash();
-            android.widget.Toast.makeText(MainActivity.this, earnedShield ? "Task completed! \uD83D\uDEE1\uFE0F +1 Streak Shield!" : "Task completed!", android.widget.Toast.LENGTH_SHORT).show();
+            boolean crit = streakManager.wasLastCriticalHit();
+            triggerCompletionHaptics(crit);
+            showCompletionFlash(crit);
+            String msg = crit ? "\uD83C\uDFB0 2x XP CRITICAL HIT!" : (earnedShield ? "Task completed! \uD83D\uDEE1\uFE0F +1 Streak Shield!" : "Task completed!");
+            android.widget.Toast.makeText(MainActivity.this, msg, android.widget.Toast.LENGTH_SHORT).show();
             TaskManager.saveTasks(this, allItems);
             ReminderHelper.scheduleAll(this, allItems);
             updateVisibleItems();
@@ -1752,7 +1843,7 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Say a task");
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Say one or more tasks");
         try {
             startActivityForResult(intent, REQUEST_VOICE_TASK);
         } catch (ActivityNotFoundException e) {
