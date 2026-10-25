@@ -804,7 +804,7 @@ public class MainActivity extends AppCompatActivity {
 
     // ==================== TIMER ====================
 
-    private void startTimer(TimelineItem item) {
+    private void startTimer(TimelineItem item) { android.content.SharedPreferences activeSp = getSharedPreferences("ezpz_active_timer", MODE_PRIVATE); if (activeSp.getBoolean("is_running", false) || TimerService.running) { String prevTitle = activeSp.getString("task_title", ""); long prevLeft = activeSp.getLong("time_left", 0); long prevTotal = activeSp.getLong("total_time", prevLeft); String prevSub = activeSp.getString("task_subtitle", ""); String prevDate = activeSp.getString("task_date", TaskManager.todayDate()); if (!prevTitle.isEmpty() && !prevTitle.equalsIgnoreCase(item.getTitle()) && prevLeft > 0) { getSharedPreferences("ezpz_timer", MODE_PRIVATE).edit().putLong("time_left", prevLeft).putLong("total_time", prevTotal).putString("task_title", prevTitle).putString("task_subtitle", prevSub).putString("task_date", prevDate).apply(); } TimerService.running = false; TimerService.paused = false; activeSp.edit().clear().apply(); try { startService(new Intent(this, TimerService.class).setAction("STOP")); } catch (Exception ignored) {} } isLaunchingActiveTimer = true;
         if (isDraggingCard || (System.currentTimeMillis() - lastDragEndTime < 400)) return;
         Intent timerIntent = new Intent(this, TimerActivity.class);
         timerIntent.putExtra("task_title", item.getTitle());
