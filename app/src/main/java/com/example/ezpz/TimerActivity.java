@@ -209,7 +209,7 @@ public class TimerActivity extends AppCompatActivity {
         int parsedMins = parseMinutes(taskSubtitle);
         estimatedMinutes = parsedMins > 0 ? parsedMins : 25;
 
-        if (isContinue && savedTime > 0) {
+        if (isContinue && savedTime > 0) { actualElapsedSeconds = Math.max(0, ((savedTotal > 0 ? savedTotal : savedTime) - savedTime) / 1000L);
             timeLeftMillis  = savedTime;
             totalTimeMillis = savedTotal > 0 ? savedTotal : savedTime;
         } else {
@@ -235,7 +235,7 @@ public class TimerActivity extends AppCompatActivity {
             registerReceiver(timerReceiver, timerFilter);
         }
 
-        toggleZenMode(true);
+        toggleZenMode(true); if (i.getBooleanExtra("from_active_service", false) && savedTime <= 0) { totalTimeMillis = savedTotal > 0 ? savedTotal : (estimatedMinutes * 60 * 1000L); timeLeftMillis = 0; actualElapsedSeconds = (totalTimeMillis + Math.abs(savedTime)) / 1000L; enterHyperfocusOvertime(); overtimeSeconds = Math.abs(savedTime) / 1000L; } else if (i.getBooleanExtra("is_paused_restore", false)) { timerRunning = false; timerText.setAlpha(0.4f); updateTimerText(); updateProgress(); } else
         resumeTimer();
 
         btnCompleteTask.setOnClickListener(v -> {
@@ -505,11 +505,7 @@ public class TimerActivity extends AppCompatActivity {
                     samples[i] = (short) (clamped * 6000);
                 } else {
                     // [#27] 40Hz Gamma Focus Tone: 40Hz fundamental + 200Hz/240Hz 40Hz-beating warm harmonic
-                    double gamma40 = Math.sin(2.0 * Math.PI * 40.0 * t);
-                    double carrierL = Math.sin(2.0 * Math.PI * 200.0 * t);
-                    double carrierR = Math.sin(2.0 * Math.PI * 240.0 * t);
-                    double mix = 0.45 * gamma40 + 0.55 * ((carrierL + carrierR) * 0.5);
-                    samples[i] = (short) (mix * 5000);
+                    double white = rng.nextDouble() * 2.0 - 1.0; lastOut = (lastOut + (0.012 * white)) / 1.012; double deepWash = Math.max(-1.0, Math.min(1.0, lastOut * 2.6)); double warmHum = Math.sin(2.0 * Math.PI * 128.0 * t); double env40Hz = 0.55 + 0.45 * Math.sin(2.0 * Math.PI * 40.0 * t); samples[i] = (short) (((0.88 * deepWash + 0.12 * warmHum) * env40Hz) * 3400);
                 }
             }
 
@@ -700,7 +696,7 @@ public class TimerActivity extends AppCompatActivity {
                 Intent svc = new Intent(this, TimerService.class);
                 svc.putExtra("time_left", timeLeftMillis);
                 svc.putExtra("total_time", totalTimeMillis);
-                svc.putExtra("task_title", taskTitle);
+                svc.putExtra("task_title", taskTitle); svc.putExtra("task_subtitle", taskSubtitle); svc.putExtra("task_date", taskDate);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startForegroundService(svc);
                 } else {
@@ -779,7 +775,7 @@ public class TimerActivity extends AppCompatActivity {
         try { startService(new Intent(this, TimerService.class).setAction("STOP")); } catch (Exception ignored) {}
         toggleZenMode(false);
 
-        getSharedPreferences("ezpz_timer", MODE_PRIVATE).edit()
+        TimerService.running = false; TimerService.paused = false; getSharedPreferences("ezpz_active_timer", MODE_PRIVATE).edit().clear().apply(); getSharedPreferences("ezpz_timer", MODE_PRIVATE).edit()
                 .putLong("time_left", timeLeftMillis)
                 .putLong("total_time", totalTimeMillis)
                 .putString("task_title", taskTitle)
@@ -889,7 +885,7 @@ public class TimerActivity extends AppCompatActivity {
     }
 
     private void clearSavedTimer() {
-        getSharedPreferences("ezpz_timer", MODE_PRIVATE).edit().clear().apply();
+        TimerService.running = false; TimerService.paused = false; getSharedPreferences("ezpz_active_timer", MODE_PRIVATE).edit().clear().apply(); TimerService.running = false; TimerService.paused = false; getSharedPreferences("ezpz_active_timer", MODE_PRIVATE).edit().clear().apply(); getSharedPreferences("ezpz_timer", MODE_PRIVATE).edit().clear().apply();
     }
 
     private void loadProfilePhoto() {

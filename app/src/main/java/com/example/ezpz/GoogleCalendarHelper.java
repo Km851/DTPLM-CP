@@ -264,7 +264,7 @@ public class GoogleCalendarHelper {
                             break;
                         }
                     }
-                    if (exists) continue;
+                    if (!exists) { for (TimelineItem h : HistoryManager.getHistory(context)) { if (h.getTitle() != null && h.getTitle().trim().equalsIgnoreCase(title.trim()) && due.equals(h.getDueDate())) { exists = true; break; } } } if (exists) continue;
 
                     // Build subtitle for time
                     String subtitle = "";

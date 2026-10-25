@@ -47,7 +47,7 @@ public class MainActivity extends AppCompatActivity {
     private String currentFilter = "All";
     private boolean lowBatteryFilter = false;
     private boolean snowballSortMode = false;
-    private boolean lockScreenPinned = false;
+    private boolean lockScreenPinned = false; private boolean isLaunchingActiveTimer = false; private void purgeCompletedDuplicates() { String today = TaskManager.todayDate(); List<TimelineItem> history = HistoryManager.getHistory(this); if (history == null || history.isEmpty() || allItems == null || allItems.isEmpty()) return; java.util.Set<String> doneTitles = new java.util.HashSet<>(); for (TimelineItem h : history) { if (today.equals(h.getDueDate()) && h.getTitle() != null) doneTitles.add(h.getTitle().trim().toLowerCase(Locale.US)); } if (doneTitles.isEmpty()) return; boolean changed = false; java.util.Iterator<TimelineItem> it = allItems.iterator(); while (it.hasNext()) { TimelineItem t = it.next(); if (t.getTitle() != null && today.equals(t.getDueDate()) && doneTitles.contains(t.getTitle().trim().toLowerCase(Locale.US))) { it.remove(); changed = true; } } if (changed) TaskManager.saveTasks(this, allItems); } private boolean checkAndResumeActiveTimer() { if (isLaunchingActiveTimer) return true; android.content.SharedPreferences sp = getSharedPreferences("ezpz_active_timer", MODE_PRIVATE); boolean isRunning = sp.getBoolean("is_running", false); if (!isRunning && !TimerService.running) return false; String title = sp.getString("task_title", ""); String subtitle = sp.getString("task_subtitle", ""); String date = sp.getString("task_date", TaskManager.todayDate()); long timeLeft = sp.getLong("time_left", 0); long totalTime = sp.getLong("total_time", timeLeft); boolean isPaused = sp.getBoolean("is_paused", false); long lastUpdate = sp.getLong("last_update", 0); if (title == null || title.isEmpty()) return false; if (!isPaused && lastUpdate > 0) timeLeft = timeLeft - (System.currentTimeMillis() - lastUpdate); isLaunchingActiveTimer = true; Intent ti = new Intent(this, TimerActivity.class); ti.putExtra("task_title", title); ti.putExtra("task_subtitle", subtitle); ti.putExtra("task_date", date); ti.putExtra("is_continue", true); ti.putExtra("from_active_service", true); ti.putExtra("is_paused_restore", isPaused); ti.putExtra("saved_time", timeLeft); ti.putExtra("saved_total", totalTime > 0 ? totalTime : 25 * 60 * 1000L); startActivityForResult(ti, 200); overridePendingTransition(0, 0); return true; }
     private static final int REQUEST_VOICE_TASK = 42;
     private static final String LOCK_PIN_CHANNEL_ID = "ezpz_lockscreen_pin";
     private static final int LOCK_PIN_NOTIF_ID = 777;
@@ -257,7 +257,7 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
 
-        allItems = TaskManager.loadTasks(this);
+        allItems = TaskManager.loadTasks(this); purgeCompletedDuplicates();
 
         RecyclerView recyclerView = findViewById(R.id.recyclerTimeline);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -779,9 +779,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        allItems = TaskManager.loadTasks(this);
+        allItems = TaskManager.loadTasks(this); purgeCompletedDuplicates(); if (checkAndResumeActiveTimer()) return;
         GoogleCalendarHelper.importTasksFromCalendar(this, () -> {
-            allItems = TaskManager.loadTasks(MainActivity.this);
+            allItems = TaskManager.loadTasks(MainActivity.this); purgeCompletedDuplicates();
             updateVisibleItems();
             adapter.notifyDataSetChanged();
             updateEmptyState();
@@ -1041,7 +1041,7 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
 
         // Handle TimerActivity results
-        if (requestCode == 200) {
+        if (requestCode == 200) { isLaunchingActiveTimer = false;
             if (resultCode == TimerActivity.RESULT_COMPLETED && data != null) {
                 String title = data.getStringExtra("task_title");
                 String date = data.getStringExtra("task_date");
@@ -1049,7 +1049,7 @@ public class MainActivity extends AppCompatActivity {
                 int actSecs = data.getIntExtra("actual_seconds", 0);
                 for (int i = 0; i < allItems.size(); i++) {
                     TimelineItem item = allItems.get(i);
-                    if (item.getTitle().equals(title) && item.getDueDate().equals(date)) {
+                    if (title != null && item.getTitle() != null && item.getTitle().trim().equalsIgnoreCase(title.trim())) {
                         allItems.remove(i);
                         GoogleCalendarHelper.deleteTaskFromCalendar(this, item);
                         HistoryManager.saveCompletedTask(this, item);

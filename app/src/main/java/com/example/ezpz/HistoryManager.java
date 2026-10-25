@@ -37,7 +37,7 @@ public class HistoryManager {
                 task.getReminderMinutes()
         );
         
-        history.add(completed);
+        for (TimelineItem ex : history) { if (today.equals(ex.getDueDate()) && ex.getTitle() != null && ex.getTitle().trim().equalsIgnoreCase(task.getTitle().trim())) return; } history.add(completed);
         saveHistory(context, history);
     }
 

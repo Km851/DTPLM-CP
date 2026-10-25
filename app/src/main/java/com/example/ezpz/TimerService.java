@@ -25,7 +25,7 @@ public class TimerService extends Service {
     private CountDownTimer timer;
     private long timeLeftMs;
     private long totalTimeMs;
-    private String taskName = "Timer";
+    private String taskName = "Timer", taskSubtitle = "", taskDate = "";
 
     public static boolean running = false;
     public static boolean paused = false;
@@ -70,7 +70,7 @@ public class TimerService extends Service {
 
         timeLeftMs = intent.getLongExtra("time_left", 0);
         totalTimeMs = intent.getLongExtra("total_time", timeLeftMs);
-        taskName = intent.getStringExtra("task_title");
+        taskName = intent.getStringExtra("task_title"); taskSubtitle = intent.getStringExtra("task_subtitle"); if (taskSubtitle == null) taskSubtitle = ""; taskDate = intent.getStringExtra("task_date"); if (taskDate == null) taskDate = "";
         if (taskName == null) taskName = "Timer";
 
         saveTimerState();
@@ -162,7 +162,7 @@ public class TimerService extends Service {
         getSharedPreferences("ezpz_active_timer", MODE_PRIVATE).edit()
                 .putLong("time_left", timeLeftMs)
                 .putLong("total_time", totalTimeMs)
-                .putString("task_title", taskName)
+                .putString("task_title", taskName).putString("task_subtitle", taskSubtitle).putString("task_date", taskDate)
                 .putBoolean("is_running", running)
                 .putBoolean("is_paused", paused)
                 .putLong("last_update", System.currentTimeMillis())
@@ -174,7 +174,7 @@ public class TimerService extends Service {
     }
 
     private Notification buildNotif(String time, boolean isRunning) {
-        Intent open = new Intent(this, TimerActivity.class);
+        Intent open = new Intent(this, MainActivity.class);
         open.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent openPi = PendingIntent.getActivity(this, 0, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
