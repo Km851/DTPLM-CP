@@ -542,6 +542,14 @@ public class MainActivity extends AppCompatActivity {
         aCard = findViewById(R.id.Acard);
         cardView3 = findViewById(R.id.cardView3);
         if (cardView3 != null) {
+            float d = getResources().getDisplayMetrics().density;
+            android.graphics.drawable.GradientDrawable streakBg = new android.graphics.drawable.GradientDrawable(
+                    android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                    new int[]{getColor(R.color.purple_primary_start), getColor(R.color.purple_primary_end)});
+            streakBg.setCornerRadius(22f * d);
+            streakBg.setStroke((int) (1.2f * d), 0x55FFFFFF);
+            cardView3.setBackground(streakBg);
+            cardView3.setElevation(8f * d);
             cardView3.setOnClickListener(v -> showDoneTodayReceiptDialog());
         }
 
@@ -1439,6 +1447,18 @@ public class MainActivity extends AppCompatActivity {
             final FrameLayout chipReceipt = createPowerChip("\uD83E\uDDFE Receipt", d);
             chipReceipt.setOnClickListener(v -> showDoneTodayReceiptDialog());
             chipRow.addView(chipReceipt);
+
+            boolean isDarkNow = getSharedPreferences("ezpz_settings", MODE_PRIVATE).getBoolean("dark_mode", false);
+            final FrameLayout chipTheme = createPowerChip(isDarkNow ? "\u2600\uFE0F Light" : "\uD83C\uDF19 Dark", d);
+            chipTheme.setOnClickListener(v -> {
+                android.content.SharedPreferences sp = getSharedPreferences("ezpz_settings", MODE_PRIVATE);
+                boolean nextDark = !sp.getBoolean("dark_mode", false);
+                sp.edit().putBoolean("dark_mode", nextDark).apply();
+                androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
+                        nextDark ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+                                 : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO);
+            });
+            chipRow.addView(chipTheme);
         }
     }
 
@@ -1632,11 +1652,11 @@ public class MainActivity extends AppCompatActivity {
                 TextView tv = new TextView(this);
                 String tag = (i < 3) ? ("#" + (i + 1) + " [Home] ") : ("#" + (i + 1) + " [Other] ");
                 tv.setText(tag + item.getTitle()); tv.setTextSize(14f);
-                tv.setTextColor(i < 3 ? 0xFF6A1B9A : 0xFF666666);
+                tv.setTextColor(getColor(i < 3 ? R.color.section_label : R.color.text_secondary));
                 tv.setTypeface(null, i < 3 ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
                 row.addView(tv, new android.widget.LinearLayout.LayoutParams(0, -2, 1f));
                 if (i > 0) {
-                    TextView bTop = new TextView(this); bTop.setText("Top #1"); bTop.setTextSize(11f); bTop.setTextColor(0xFF7C4DFF);
+                    TextView bTop = new TextView(this); bTop.setText("Top #1"); bTop.setTextSize(11f); bTop.setTextColor(getColor(R.color.section_label));
                     bTop.setTypeface(null, android.graphics.Typeface.BOLD); bTop.setPadding((int)(10*d),(int)(4*d),(int)(10*d),(int)(4*d));
                     bTop.setBackgroundResource(R.drawable.bg_pill_inactive);
                     bTop.setOnClickListener(v -> {

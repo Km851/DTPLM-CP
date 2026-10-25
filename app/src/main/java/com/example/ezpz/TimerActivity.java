@@ -183,6 +183,27 @@ public class TimerActivity extends AppCompatActivity {
         nextUpTask1     = findViewById(R.id.nextUpTask1Timer);
         nextUpTask2     = findViewById(R.id.nextUpTask2Timer);
 
+        if (nextUpPreview != null) {
+            float d = getResources().getDisplayMetrics().density;
+            nextUpPreview.setBackgroundResource(R.drawable.bg_gradient_light_rounded);
+            int pH = (int) (16 * d);
+            int pV = (int) (12 * d);
+            nextUpPreview.setPadding(pH, pV, pH, pV);
+        }
+        if (btnSaveQuit instanceof androidx.cardview.widget.CardView) {
+            androidx.cardview.widget.CardView sqCard = (androidx.cardview.widget.CardView) btnSaveQuit;
+            sqCard.setCardBackgroundColor(getColor(R.color.btn_secondary_bg));
+            if (sqCard.getChildAt(0) instanceof TextView) {
+                ((TextView) sqCard.getChildAt(0)).setTextColor(getColor(R.color.btn_secondary_text));
+            }
+        }
+        if (btnCompleteTask instanceof androidx.cardview.widget.CardView) {
+            androidx.cardview.widget.CardView cpCard = (androidx.cardview.widget.CardView) btnCompleteTask;
+            if (cpCard.getChildAt(0) instanceof TextView) {
+                ((TextView) cpCard.getChildAt(0)).setText("Complete \u2713");
+            }
+        }
+
         loadProfilePhoto();
 
         Intent i = getIntent();
