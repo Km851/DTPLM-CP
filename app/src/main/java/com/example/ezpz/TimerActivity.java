@@ -1,21 +1,30 @@
 package com.example.ezpz;
 
 import android.content.Intent;
+import android.graphics.drawable.GradientDrawable;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
+
+import java.util.Random;
 
 /**
  * Dedicated Timer Activity — completely separate view hierarchy from MainActivity.
- * Receives task info via Intent extras, runs the countdown, and returns a result
- * (completed / saved / cancelled) back to the caller.
+ * Includes ADHD 2-Minute Micro-Sprint ("⚡ 2m Sprint"), "+5m" extension, and synthesized
+ * soothing Brown Noise ("🌧️ Focus Sound") with zero external audio assets.
  */
 public class TimerActivity extends AppCompatActivity {
 
@@ -41,6 +50,11 @@ public class TimerActivity extends AppCompatActivity {
     private String taskTitle = "";
     private String taskSubtitle = "";
     private String taskDate = "";
+
+    // Brown noise ambient sound state
+    private AudioTrack brownNoiseTrack;
+    private boolean ambientPlaying = false;
+    private TextView btnAmbientSound;
 
     // Quick-tap cancel: 4 taps in 2 seconds
     private int cancelTapCount = 0;
@@ -79,7 +93,6 @@ public class TimerActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Apply dark mode preference
         android.content.SharedPreferences modePrefs = getSharedPreferences("ezpz_settings", MODE_PRIVATE);
         if (modePrefs.getBoolean("dark_mode", false)) {
             androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
@@ -107,7 +120,6 @@ public class TimerActivity extends AppCompatActivity {
         nextUpTask1     = findViewById(R.id.nextUpTask1Timer);
         nextUpTask2     = findViewById(R.id.nextUpTask2Timer);
 
-        // Load profile photo
         loadProfilePhoto();
 
         // Read extras
@@ -126,23 +138,23 @@ public class TimerActivity extends AppCompatActivity {
 
         timerTaskName.setText(taskTitle);
 
-        // Parse time
         if (isContinue && savedTime > 0) {
             timeLeftMillis  = savedTime;
             totalTimeMillis = savedTotal > 0 ? savedTotal : savedTime;
         } else {
             int minutes = parseMinutes(taskSubtitle);
-            if (minutes <= 0) minutes = 25; // default 25 min pomodoro
+            if (minutes <= 0) minutes = 25;
             timeLeftMillis  = minutes * 60 * 1000L;
             totalTimeMillis = timeLeftMillis;
         }
 
-        // Show next-up preview
         showNextUpPreview();
 
-        // Init progress
         timerProgress.setProgress(0);
         updateTimerText();
+
+        // Inject ADHD Micro-Sprint & Brown Noise row below timerButtonRowTimer
+        setupAdhdTimerBoostRow();
 
         // Register broadcast receivers
         android.content.IntentFilter timerFilter = new android.content.IntentFilter();
@@ -156,13 +168,9 @@ public class TimerActivity extends AppCompatActivity {
             registerReceiver(timerReceiver, timerFilter);
         }
 
-        // Enable Zen Mode
         toggleZenMode(true);
-
-        // Start the timer
         resumeTimer();
 
-        // Button listeners
         btnCompleteTask.setOnClickListener(v -> {
             if (countDownTimer != null) countDownTimer.cancel();
             timerRunning = false;
@@ -171,7 +179,6 @@ public class TimerActivity extends AppCompatActivity {
 
         btnSaveQuit.setOnClickListener(v -> saveAndQuit());
 
-        // Tap container → pause / resume / quick-cancel
         View timerContainer = findViewById(R.id.timerContainerTimer);
         timerContainer.setOnClickListener(v -> {
             long now = System.currentTimeMillis();
@@ -195,15 +202,163 @@ public class TimerActivity extends AppCompatActivity {
         });
     }
 
+    private void setupAdhdTimerBoostRow() {
+        ConstraintLayout root = findViewById(R.id.timerRoot);
+        View btnRow = findViewById(R.id.timerButtonRowTimer);
+        if (root == null || btnRow == null) return;
+
+        float d = getResources().getDisplayMetrics().density;
+        LinearLayout boostRow = new LinearLayout(this);
+        boostRow.setOrientation(LinearLayout.HORIZONTAL);
+        boostRow.setGravity(Gravity.CENTER);
+
+        ConstraintLayout.LayoutParams lp = new ConstraintLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topToBottom = btnRow.getId();
+        lp.startToStart = ConstraintLayout.LayoutParams.PARENT_ID;
+        lp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID;
+        lp.topMargin = (int) (14 * d);
+        boostRow.setLayoutParams(lp);
+
+        // 1) ⚡ 2m Sprint (Just Start Micro-Commitment)
+        TextView btnSprint = createBoostPill("\u26A1 2m Sprint", d, false);
+        btnSprint.setOnClickListener(v -> {
+            if (countDownTimer != null) countDownTimer.cancel();
+            timeLeftMillis = 2 * 60 * 1000L;
+            totalTimeMillis = timeLeftMillis;
+            timerProgress.setProgress(0);
+            updateTimerText();
+            resumeTimer();
+            Toast.makeText(this, "\u26A1 2-Min Micro-Sprint! Just start — you can stop after 120s.", Toast.LENGTH_SHORT).show();
+        });
+        boostRow.addView(btnSprint);
+
+        // 2) +5m Extend
+        TextView btnPlus5 = createBoostPill("+5m", d, false);
+        btnPlus5.setOnClickListener(v -> {
+            if (countDownTimer != null) countDownTimer.cancel();
+            timeLeftMillis += 5 * 60 * 1000L;
+            totalTimeMillis += 5 * 60 * 1000L;
+            updateTimerText();
+            updateProgress();
+            if (timerRunning) resumeTimer();
+            Toast.makeText(this, "+5 minutes added!", Toast.LENGTH_SHORT).show();
+        });
+        boostRow.addView(btnPlus5);
+
+        // 3) 🌧️ Brown Noise Focus Sound
+        btnAmbientSound = createBoostPill("\uD83C\uDF27\uFE0F Brown Noise", d, false);
+        btnAmbientSound.setOnClickListener(v -> toggleAmbientSound(d));
+        boostRow.addView(btnAmbientSound);
+
+        root.addView(boostRow);
+    }
+
+    private TextView createBoostPill(String text, float d, boolean active) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextSize(12f);
+        tv.setTextColor(active ? 0xFFFFFFFF : getResources().getColor(R.color.text_primary));
+        tv.setGravity(Gravity.CENTER);
+        tv.setPadding((int) (14 * d), (int) (8 * d), (int) (14 * d), (int) (8 * d));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(18f * d);
+        bg.setColor(active ? 0xFF7C4DFF : 0x337C4DFF);
+        bg.setStroke((int) (1f * d), 0x887C4DFF);
+        tv.setBackground(bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMarginEnd((int) (8 * d));
+        tv.setLayoutParams(lp);
+        return tv;
+    }
+
+    private void toggleAmbientSound(float d) {
+        if (ambientPlaying) {
+            stopAmbientSound();
+            if (btnAmbientSound != null) {
+                btnAmbientSound.setText("\uD83C\uDF27\uFE0F Brown Noise");
+                GradientDrawable bg = new GradientDrawable();
+                bg.setCornerRadius(18f * d);
+                bg.setColor(0x337C4DFF);
+                bg.setStroke((int) (1f * d), 0x887C4DFF);
+                btnAmbientSound.setBackground(bg);
+                btnAmbientSound.setTextColor(getResources().getColor(R.color.text_primary));
+            }
+            Toast.makeText(this, "Focus sound OFF", Toast.LENGTH_SHORT).show();
+        } else {
+            startAmbientSound();
+            if (btnAmbientSound != null) {
+                btnAmbientSound.setText("\uD83D\uDD0A Brown Noise ON");
+                GradientDrawable bg = new GradientDrawable();
+                bg.setCornerRadius(18f * d);
+                bg.setColor(0xFF7C4DFF);
+                bg.setStroke((int) (1f * d), 0xFFFFFFFF);
+                btnAmbientSound.setBackground(bg);
+                btnAmbientSound.setTextColor(0xFFFFFFFF);
+            }
+            Toast.makeText(this, "\uD83C\uDF27\uFE0F Soothing Brown Noise playing", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void startAmbientSound() {
+        stopAmbientSound();
+        try {
+            int sampleRate = 22050;
+            int numSamples = sampleRate * 3; // 3-second seamless loop
+            short[] samples = new short[numSamples];
+            Random rng = new Random(42);
+            double lastOut = 0.0;
+            for (int i = 0; i < numSamples; i++) {
+                double white = rng.nextDouble() * 2.0 - 1.0;
+                lastOut = (lastOut + (0.02 * white)) / 1.02;
+                double clamped = Math.max(-1.0, Math.min(1.0, lastOut * 3.2));
+                samples[i] = (short) (clamped * 4200);
+            }
+            // Crossfade edges for click-free looping
+            int fade = 500;
+            for (int i = 0; i < fade; i++) {
+                float w = (float) i / fade;
+                samples[numSamples - fade + i] = (short) (samples[numSamples - fade + i] * (1f - w) + samples[i] * w);
+            }
+            brownNoiseTrack = new AudioTrack(
+                    AudioManager.STREAM_MUSIC,
+                    sampleRate,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    samples.length * 2,
+                    AudioTrack.MODE_STATIC);
+            brownNoiseTrack.write(samples, 0, samples.length);
+            brownNoiseTrack.setLoopPoints(0, numSamples - fade, -1);
+            brownNoiseTrack.play();
+            ambientPlaying = true;
+        } catch (Exception ignored) {
+            ambientPlaying = false;
+        }
+    }
+
+    private void stopAmbientSound() {
+        ambientPlaying = false;
+        if (brownNoiseTrack != null) {
+            try {
+                brownNoiseTrack.stop();
+            } catch (Exception ignored) {}
+            try {
+                brownNoiseTrack.release();
+            } catch (Exception ignored) {}
+            brownNoiseTrack = null;
+        }
+    }
+
     @Override
     protected void onDestroy() {
+        stopAmbientSound();
         super.onDestroy();
         try { unregisterReceiver(timerReceiver); } catch (Exception ignored) {}
     }
 
     @Override
     public void onBackPressed() {
-        // Back = save & quit (don't lose progress)
         saveAndQuit();
     }
 
@@ -233,7 +388,6 @@ public class TimerActivity extends AppCompatActivity {
     }
 
     private void resumeTimer() {
-        // Start background service
         try {
             Intent svc = new Intent(this, TimerService.class);
             svc.putExtra("time_left", timeLeftMillis);
@@ -264,6 +418,7 @@ public class TimerActivity extends AppCompatActivity {
     }
 
     private void cancelTimer() {
+        stopAmbientSound();
         if (countDownTimer != null) countDownTimer.cancel();
         timerRunning = false;
         cancelTapCount = 0;
@@ -277,11 +432,11 @@ public class TimerActivity extends AppCompatActivity {
     }
 
     private void onTimerComplete() {
+        stopAmbientSound();
         clearSavedTimer();
         try { startService(new Intent(this, TimerService.class).setAction("STOP")); } catch (Exception ignored) {}
         toggleZenMode(false);
 
-        // Haptic feedback
         android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
         if (vibrator != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator.vibrate(android.os.VibrationEffect.createOneShot(200, android.os.VibrationEffect.DEFAULT_AMPLITUDE));
@@ -301,12 +456,12 @@ public class TimerActivity extends AppCompatActivity {
     }
 
     private void saveAndQuit() {
+        stopAmbientSound();
         if (countDownTimer != null) countDownTimer.cancel();
         timerRunning = false;
         try { startService(new Intent(this, TimerService.class).setAction("STOP")); } catch (Exception ignored) {}
         toggleZenMode(false);
 
-        // Persist timer state
         getSharedPreferences("ezpz_timer", MODE_PRIVATE).edit()
                 .putLong("time_left", timeLeftMillis)
                 .putLong("total_time", totalTimeMillis)
@@ -389,13 +544,13 @@ public class TimerActivity extends AppCompatActivity {
 
         nextUpPreview.setVisibility(View.VISIBLE);
         if (todayItems.size() >= 1) {
-            nextUpTask1.setText(todayItems.get(0).getTitle() + "  ·  " + todayItems.get(0).getSubtitle());
+            nextUpTask1.setText(todayItems.get(0).getTitle() + " \u2022 " + todayItems.get(0).getSubtitle());
             nextUpTask1.setVisibility(View.VISIBLE);
         } else {
             nextUpTask1.setVisibility(View.GONE);
         }
         if (todayItems.size() >= 2) {
-            nextUpTask2.setText(todayItems.get(1).getTitle() + "  ·  " + todayItems.get(1).getSubtitle());
+            nextUpTask2.setText(todayItems.get(1).getTitle() + " \u2022 " + todayItems.get(1).getSubtitle());
             nextUpTask2.setVisibility(View.VISIBLE);
         } else {
             nextUpTask2.setVisibility(View.GONE);

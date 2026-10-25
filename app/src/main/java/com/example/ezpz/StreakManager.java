@@ -14,12 +14,14 @@ public class StreakManager {
     private static final String KEY_LAST_DATE = "last_date";
     private static final String KEY_COMPLETED = "completed_today";
     private static final String KEY_TOTAL = "total_today";
-    private static final String KEY_LAST_HAD_TASKS = "last_had_tasks";
+    private static final String KEY_SHIELDS = "streak_shields";
+    private static final String KEY_SHIELD_PROGRESS = "shield_progress";
 
     private SharedPreferences prefs;
 
     public StreakManager(Context context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        if (!prefs.contains(KEY_SHIELDS)) prefs.edit().putInt(KEY_SHIELDS, 1).apply();
     }
 
     private String getToday() {
@@ -57,8 +59,9 @@ public class StreakManager {
                 // Completed more than half - streak increases!
                 currentStreak++;
                 prefs.edit().putInt(KEY_STREAK, currentStreak).apply();
+            } else if (currentStreak > 0 && getShields() > 0) {
+                prefs.edit().putInt(KEY_SHIELDS, getShields() - 1).apply();
             } else {
-                // Failed to complete half - streak resets
                 prefs.edit().putInt(KEY_STREAK, 0).apply();
             }
 
@@ -75,10 +78,16 @@ public class StreakManager {
     }
 
     // Call when a task is completed
-    public void taskCompleted() {
+    public boolean taskCompleted() {
         int completed = prefs.getInt(KEY_COMPLETED, 0) + 1;
-        prefs.edit().putInt(KEY_COMPLETED, completed).apply();
+        int prog = prefs.getInt(KEY_SHIELD_PROGRESS, 0) + 1;
+        int shields = getShields();
+        boolean earned = false;
+        if (prog >= 3) { prog = 0; if (shields < 3) { shields++; earned = true; } }
+        prefs.edit().putInt(KEY_COMPLETED, completed).putInt(KEY_SHIELD_PROGRESS, prog).putInt(KEY_SHIELDS, shields).apply();
+        return earned;
     }
+    public int getShields() { return prefs.getInt(KEY_SHIELDS, 1); }
 
     // Call when tasks are added/changed
     public void updateTotalTasks(int total) {

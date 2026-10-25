@@ -1,6 +1,7 @@
 package com.example.ezpz;
 
 import android.graphics.drawable.GradientDrawable;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,7 +14,12 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.github.vipulasri.timelineview.TimelineView;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.TimelineViewHolder> {
 
@@ -23,8 +29,10 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
     private OnLongClickListener longClickListener;
     private OnContinueClickListener continueClickListener;
     private OnRestartClickListener restartClickListener;
+    private OnSplitClickListener splitClickListener;
     private String savedTaskTitle = null;
     private long savedTimeLeft = 0;
+    private boolean tunnelVisionMode = false;
 
     public interface OnStartClickListener {
         void onStartClicked(TimelineItem item, int position);
@@ -41,6 +49,9 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
     public interface OnRestartClickListener {
         void onRestartClicked(TimelineItem item, int position);
     }
+    public interface OnSplitClickListener {
+        void onSplitClicked(TimelineItem item, int position);
+    }
 
     public TimelineAdapter(List<TimelineItem> items) {
         this.items = items;
@@ -51,6 +62,16 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
     public void setOnLongClickListener(OnLongClickListener listener) { this.longClickListener = listener; }
     public void setOnContinueClickListener(OnContinueClickListener listener) { this.continueClickListener = listener; }
     public void setOnRestartClickListener(OnRestartClickListener listener) { this.restartClickListener = listener; }
+    public void setOnSplitClickListener(OnSplitClickListener listener) { this.splitClickListener = listener; }
+
+    public void setTunnelVisionMode(boolean enabled) {
+        this.tunnelVisionMode = enabled;
+        notifyDataSetChanged();
+    }
+
+    public boolean isTunnelVisionMode() {
+        return tunnelVisionMode;
+    }
 
     public void setSavedTimer(String title, long timeLeft) {
         this.savedTaskTitle = title;
@@ -60,6 +81,47 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
     public void clearSavedTimer() {
         this.savedTaskTitle = null;
         this.savedTimeLeft = 0;
+    }
+
+    private int parseMinutesFromSubtitle(String sub) {
+        if (sub == null || sub.isEmpty()) return 25;
+        try {
+            String lower = sub.toLowerCase(Locale.US);
+            Matcher hm = Pattern.compile("(\\d+\\.?\\d*)\\s*(hours?|hrs?|h)\\b").matcher(lower);
+            if (hm.find()) {
+                double h = Double.parseDouble(hm.group(1));
+                int extra = 0;
+                Matcher mm = Pattern.compile("(\\d+)\\s*(min|mins|m)\\b").matcher(lower);
+                if (mm.find()) extra = Integer.parseInt(mm.group(1));
+                return Math.max(5, (int) (h * 60) + extra);
+            }
+            Matcher mm = Pattern.compile("(\\d+)\\s*(min|mins|m)\\b").matcher(lower);
+            if (mm.find()) return Math.max(1, Integer.parseInt(mm.group(1)));
+        } catch (Exception ignored) {}
+        return 25;
+    }
+
+    private String buildSmartSubtitle(TimelineItem item) {
+        String e = item.getEnergyLevel();
+        String energyBadge;
+        if ("H".equalsIgnoreCase(e) || "High".equalsIgnoreCase(e)) {
+            energyBadge = "\u26A1High";
+        } else if ("L".equalsIgnoreCase(e) || "Low".equalsIgnoreCase(e)) {
+            energyBadge = "\uD83E\uDEABLow";
+        } else {
+            energyBadge = "\uD83D\uDD0BMed";
+        }
+
+        String rawSub = item.getSubtitle() != null ? item.getSubtitle().trim() : "";
+        int mins = parseMinutesFromSubtitle(rawSub);
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.MINUTE, mins);
+        String doneBy = new SimpleDateFormat("h:mm a", Locale.US).format(cal.getTime());
+
+        if (rawSub.isEmpty()) {
+            return energyBadge + " \u2022 " + mins + "m \u2022 \u23F0 Done by " + doneBy;
+        }
+        return energyBadge + " \u2022 " + rawSub + " \u2022 \u23F0 Done by " + doneBy;
     }
 
     @Override
@@ -79,7 +141,7 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
     public void onBindViewHolder(@NonNull TimelineViewHolder holder, int position) {
         TimelineItem item = items.get(position);
         holder.title.setText(item.getTitle());
-        holder.subtitle.setText(item.getSubtitle());
+        holder.subtitle.setText(buildSmartSubtitle(item));
 
         float density = holder.itemView.getContext().getResources().getDisplayMetrics().density;
         String rawPriority = item.getPriority();
@@ -115,7 +177,6 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
         boolean hasSaved = savedTaskTitle != null && savedTaskTitle.equals(item.getTitle());
 
         if (hasSaved) {
-            // Show Continue / Restart, hide Start
             if (holder.actionRowStartEdit != null) holder.actionRowStartEdit.setVisibility(View.GONE);
             if (holder.btnStart != null) holder.btnStart.setVisibility(View.GONE);
             holder.savedTimerRow.setVisibility(View.VISIBLE);
@@ -136,7 +197,6 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
                 if (restartClickListener != null) restartClickListener.onRestartClicked(item, position);
             });
         } else {
-            // Normal Start button
             holder.savedTimerRow.setVisibility(View.GONE);
             if (holder.actionRowStartEdit != null) holder.actionRowStartEdit.setVisibility(View.VISIBLE);
             if (holder.btnStart != null) holder.btnStart.setVisibility(View.VISIBLE);
@@ -154,7 +214,7 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
                         .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()).start();
                 if (startClickListener != null) startClickListener.onStartClicked(item, position);
             });
-            
+
             if (holder.btnEdit != null) {
                 holder.btnEdit.setOnClickListener(v -> {
                     v.animate().scaleX(0.9f).scaleY(0.9f).setDuration(50)
@@ -162,9 +222,16 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
                     if (editClickListener != null) editClickListener.onEditClicked(item, position);
                 });
             }
+
+            if (holder.btnSplit != null) {
+                holder.btnSplit.setOnClickListener(v -> {
+                    v.animate().scaleX(0.9f).scaleY(0.9f).setDuration(50)
+                            .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()).start();
+                    if (splitClickListener != null) splitClickListener.onSplitClicked(item, position);
+                });
+            }
         }
 
-        
         if (longClickListener != null) {
             holder.itemView.setOnLongClickListener(v -> {
                 longClickListener.onLongClicked(item, holder.getAdapterPosition());
@@ -177,7 +244,12 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
     }
 
     @Override
-    public int getItemCount() { return items.size(); }
+    public int getItemCount() {
+        if (tunnelVisionMode && !items.isEmpty()) {
+            return 1;
+        }
+        return items.size();
+    }
 
     static class TimelineViewHolder extends RecyclerView.ViewHolder {
         TimelineView timelineView;
@@ -185,6 +257,7 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
         TextView title, subtitle;
         LinearLayout actionRowStartEdit;
         CardView btnStart, btnEdit, btnContinue, btnRestart;
+        TextView btnSplit;
         TextView startText;
         LinearLayout savedTimerRow;
         TextView continueText;
@@ -204,6 +277,25 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
             btnRestart = itemView.findViewById(R.id.btn_restart);
             continueText = itemView.findViewById(R.id.btn_continue_text);
             timelineView.initLine(viewType);
+
+            if (actionRowStartEdit != null) {
+                float d = itemView.getContext().getResources().getDisplayMetrics().density;
+                btnSplit = new TextView(itemView.getContext());
+                btnSplit.setText("\u2728 3 Steps");
+                btnSplit.setTextSize(11.5f);
+                btnSplit.setTextColor(0xFFFFFFFF);
+                btnSplit.setGravity(Gravity.CENTER);
+                btnSplit.setPadding((int) (12 * d), 0, (int) (12 * d), 0);
+                GradientDrawable splitBg = new GradientDrawable();
+                splitBg.setCornerRadius(16f * d);
+                splitBg.setColor(0x55000000);
+                splitBg.setStroke((int) (1f * d), 0x99FFFFFF);
+                btnSplit.setBackground(splitBg);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, (int) (32 * d));
+                lp.setMarginStart((int) (8 * d));
+                actionRowStartEdit.addView(btnSplit, lp);
+            }
         }
     }
 }
